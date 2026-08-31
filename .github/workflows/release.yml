@@ -1,4 +1,4 @@
-name: Release draft
+name: Release
 
 on:
   push:
@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   release:
-    name: Test, package and draft release
+    name: Test, package and publish release
     runs-on: macos-26
     timeout-minutes: 25
     environment: release-signing
@@ -75,7 +75,7 @@ jobs:
             build/release/appcast.xml
           if-no-files-found: error
           retention-days: 14
-      - name: Create draft (never overwrite an existing release)
+      - name: Upload complete release assets (never overwrite an existing release)
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -85,3 +85,17 @@ jobs:
             --title "Prism $RELEASE_TAG (macOS arm64, not notarized)" \
             --notes-file build/release/releaseNotes.md \
             build/release/*.dmg build/release/SHA256SUMS.txt build/release/appcast.xml
+      - name: Publish uploaded release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$RELEASE_TAG" --draft=false
+
+  publishFeed:
+    name: Publish update feed
+    needs: release
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/updateFeed.yml

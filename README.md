@@ -133,12 +133,12 @@ CI 使用只读仓库权限，官方 Actions 固定到提交号，checkout 不�
    git push origin v0.3.1
    ```
 
-4. `release.yml` 首先通过 Xcode 解析配置并校验标签，再运行 XCTest、归档、生成 DMG 和 SHA-256 校验文件，使用受保护的更新密钥签署 DMG 并生成 `appcast.xml`，验证签名与应用内公钥一致后创建 **Release 草稿**。
-5. 打标签前编辑根目录 `releaseNotes.md`；该文件会同时嵌入更新订阅和草稿说明。人工验收安装包和账号切换后发布草稿。仅在 GitHub 编辑 Release 正文不会改变已签包对应的更新说明。已有相同标签的 Release 不会被覆盖；失败重试前先检查旧草稿，正式发布后应使用新版本。
+4. `release.yml` 首先通过 Xcode 解析配置并校验标签，再运行 XCTest、归档、生成 DMG 和 SHA-256 校验文件，使用受保护的更新密钥签署 DMG 并生成 `appcast.xml`，验证签名与应用内公钥一致后上传完整附件，再自动公开 Release。上传期间使用临时草稿，避免用户下载到不完整附件，无需人工发布。
+5. 打标签前编辑根目录 `releaseNotes.md`；该文件会同时嵌入更新订阅和发行说明。推送标签即表示确认发布，请在此前完成必要的安装包和账号切换验收。仅在 GitHub 编辑 Release 正文不会改变已签包对应的更新说明。已有相同标签的 Release 不会被覆盖；失败重试前先检查旧草稿，正式发布后应使用新版本。
 
 可单独运行 `bash scripts/packageRelease.sh v0.3.1 --check-only`，无需先构建归档。为避免旧附件混入，本地再次打包前需移走已有的 `build/release/`；CI 使用新运行环境。Xcode 普通构建不生成 DMG，分发阶段只生成一次 DMG。
 
-Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `GITHUB_TOKEN` 创建草稿；无需 PAT 或 Apple Secrets，但签名步骤必须配置 `release-signing` Environment 中的 `SPARKLE_PRIVATE_KEY` Secret。PR 和普通 CI 不使用更新私钥。配置推送后才会在 GitHub 上运行，本地通过不能代替云端验证。
+Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `GITHUB_TOKEN` 上传附件并自动公开 Release；无需 PAT 或 Apple Secrets，但签名步骤必须配置 `release-signing` Environment 中的 `SPARKLE_PRIVATE_KEY` Secret。PR 和普通 CI 不使用更新私钥。配置推送后才会在 GitHub 上运行，本地通过不能代替云端验证。
 
 **产物仍为临时签名、未经 Apple 公证的测试分发包。** 正式分发需要后续配置 Developer ID Application 证书、Hardened Runtime、公证和 stapling。证书私钥和公证凭据只能放在受保护的 GitHub Environment／Secrets，不能提交到仓库或交给外部 PR。当前未启用 Apple 正式签名、公证或 Intel 发行包。
 
@@ -161,7 +161,7 @@ Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `
    ```
 
 2. 将输出的**公钥**写入 `config/app.xcconfig` 的 `SPARKLE_PUBLIC_ED_KEY` 并提交；私钥保留在本机钥匙串并安全备份。它不是 Apple 开发者证书，也不能消除 Gatekeeper 提示。不要每次构建生成新密钥。空公钥时本地应用仍可使用，但会明确显示尚未配置更新，正式签名打包会失败。
-3. 在 GitHub 建立 `release-signing` Environment，限制 `v*` 标签并配置审核人。通过 Sparkle 的 `generate_keys --account xelume-prism -x <仓库外的安全临时文件>` 导出私钥，把文件内容配置为该 Environment 的 `SPARKLE_PRIVATE_KEY` Secret，随后安全移除临时导出文件。不要把私钥放进仓库、命令参数、聊天或日志。
+3. 在 GitHub 建立 `release-signing` Environment，限制 `v*` 标签，不配置 Required reviewers，以便标签推送后自动发布。通过 Sparkle 的 `generate_keys --account xelume-prism -x <仓库外的安全临时文件>` 导出私钥，把文件内容配置为该 Environment 的 `SPARKLE_PRIVATE_KEY` Secret，随后安全移除临时导出文件。不要把私钥放进仓库、命令参数、聊天或日志。
 4. 在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**，为 `github-pages` Environment 配置可信发布权限。此工作流部署整个 Pages 站点；如果仓库已有站点，需要先合并部署内容，避免覆盖。这里尚未自动修改 GitHub 设置。
 5. 创建并验收首个包含公钥的版本。已有旧版用户需要手动安装一次，之后才能使用应用内更新。
 
@@ -173,9 +173,9 @@ bash scripts/packageRelease.sh v0.3.1 --signed
 
 本地签名只读取 `xelume-prism` 对应的更新密钥；CI 只在签名步骤通过标准输入传递 Secret。Sparkle 官方 `generate_appcast` 生成元数据与 EdDSA 签名，`updateFeed.swift` 再以应用内公钥独立验证 DMG、版本、最低系统和固定下载地址。发布说明来自根目录 `releaseNotes.md`，第一版不生成增量包。
 
-`release.yml` 只创建草稿并上传 DMG、校验文件、`appcast.xml`。人工发布稳定版后，`updateFeed.yml` 读取当前最新公开稳定 Release，下载并验证附件，拒绝草稿／预发布、错误签名和更低构建号，只把订阅文件部署到 Pages。公开订阅始终最后更新。支持手动重跑部署；相同构建号仅允许原样重发，变更说明或更新包有修改时发布新版本和更高构建号。
+`release.yml` 在完整上传 DMG、校验文件、`appcast.xml` 后自动公开稳定版，再通过 `workflow_call` 调用 `updateFeed.yml`，不依赖 `GITHUB_TOKEN` 产生的发布事件。订阅流程读取当前最新公开稳定 Release，下载并验证附件，拒绝草稿／预发布、错误签名和更低构建号，只把订阅文件部署到 Pages。公开订阅始终最后更新。支持手动重跑部署；相同构建号仅允许原样重发，变更说明或更新包有修改时发布新版本和更高构建号。
 
-维护者发布每个新版本前应在隔离测试安装中验证：旧版检测新版、取消／稍后更新、下载失败、签名不匹配、最低系统不兼容、只读 DMG 提示移至 Applications、账号操作期间点击安装、更新后重启。自动化测试不替代实际安装验收，不应为此操作真实账号。应用从 DMG 直接运行时不能原地替换，请先拖到 Applications。
+维护者推送每个发布标签前应在隔离测试安装中验证：旧版检测新版、取消／稍后更新、下载失败、签名不匹配、最低系统不兼容、只读 DMG 提示移至 Applications、账号操作期间点击安装、更新后重启。自动化测试不替代实际安装验收，不应为此操作真实账号。应用从 DMG 直接运行时不能原地替换，请先拖到 Applications。
 
 参考：[Sparkle 接入与签名](https://sparkle-project.org/documentation/)、[发布更新](https://sparkle-project.org/documentation/publishing/)、[GitHub Pages 自定义工作流](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
 
