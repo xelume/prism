@@ -32,6 +32,19 @@ struct ProcessEntry {
     var summary: String {
         "\(URL(fileURLWithPath: executable).lastPathComponent)（PID \(pid)，父进程 \(parentPID)）"
     }
+
+    // Path hints explain blockers; they never establish ownership or signal authority.
+    var independentProcessGuidance: String {
+        let components = URL(fileURLWithPath: executable).pathComponents
+        if components.indices.contains(where: {
+            components[$0] == ".vscode" && $0 + 3 < components.count
+                && components[$0 + 1] == "extensions"
+                && components[$0 + 2].hasPrefix("openai.chatgpt-")
+        }) {
+            return "VS Code 的 Codex 扩展：请保存任务并完全退出 VS Code，仅关闭扩展面板可能无法停止后台进程"
+        }
+        return "独立终端／IDE 进程或归属未确认：请结束相关任务及其后台服务"
+    }
 }
 
 // Ownership is observed before quit and retained across reparenting and canceled retries.
@@ -75,11 +88,15 @@ struct ClientProcessTree {
         snapshot.filter { $0.isCodex && !$0.isZombie }
     }
 
+    func requireIndependentProcessesStopped(_ snapshot: [ProcessEntry]) throws {
+        try requireStopped(snapshot.filter { !owns($0) })
+    }
+
     func requireStopped(_ snapshot: [ProcessEntry]) throws {
         let remaining = blockers(in: snapshot)
         guard remaining.isEmpty else {
             let details = remaining.map {
-                "• \($0.summary) — \(owns($0) ? "客户端残留" : "独立进程或归属未确认")"
+                "• \($0.summary) — \(owns($0) ? "客户端残留" : $0.independentProcessGuidance)"
             }.joined(separator: "\n")
             throw SwitchError("仍有进程可能使用当前认证，切换已停止：\n\n\(details)\n\n请结束独立终端／IDE 任务或其后台服务后重试。无法确认归属的进程不会自动结束。")
         }
@@ -114,6 +131,7 @@ final class ClientShutdown {
         let initial: [ProcessEntry]
         if let initialSnapshot { initial = initialSnapshot } else { initial = try operations.read() }
         tree.observe(initial, roots: roots)
+        try tree.requireIndependentProcessesStopped(initial)
         try operations.requestQuit()
         let afterQuit = try await wait(seconds: 25, operations: operations) { snapshot in
             !snapshot.contains { entry in

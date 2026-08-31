@@ -12,9 +12,9 @@
 4. 登录完成后，选择“保存／更新当前账号”，命名为“工作”。
 5. 已保存账号直接显示在菜单中，当前账号以勾选和“当前”标注。点击其他账号，确认“是否切换到「账号名」？”后才执行切换。每次切换自动更新离开账号的最新认证，不用手动反复保存。
 
-切换前结束独立终端／IDE 的 Codex 任务。工具先记录客户端进程树，再请求官方客户端正常退出（最多等待 25 秒）。主程序退出后，给后台进程最多 10 秒自行清理，再向已确认属于客户端的 Codex 残留发送 `SIGTERM` 并等待 5 秒。仍未退出时，会列出进程并询问是否强制结束；默认选项为“取消切换”。强制结束可能丢失未保存内容或中断任务，只有明确确认后才发送 `SIGKILL`。
+切换前结束独立终端／IDE 的 Codex 任务。工具先记录客户端进程树并检查独立进程；发现阻塞时直接提示，不请求桌面客户端退出。通过检查后，再请求官方客户端正常退出（最多等待 25 秒）。主程序退出后，给后台进程最多 10 秒自行清理，再向已确认属于客户端的 Codex 残留发送 `SIGTERM` 并等待 5 秒。仍未退出时，会列出进程并询问是否强制结束；默认选项为“取消切换”。强制结束可能丢失未保存内容或中断任务，只有明确确认后才发送 `SIGKILL`。
 
-如果主程序仍未退出（例如取消了官方退出对话框），不会自动发送信号，而是单独询问是否强制结束。独立终端／IDE 进程和无法确认归属的残留只会提示进程名、PID、父进程 PID，不会自动结束。所有阻塞进程停止前不会替换认证。切换期间不要从终端、IDE 或 Dock 同时启动 ChatGPT / Codex。
+如果主程序仍未退出（例如取消了官方退出对话框），不会自动发送信号，而是单独询问是否强制结束。独立终端／IDE 进程和无法确认归属的残留会提示进程名、PID、父进程 PID，不会自动结束。识别到 VS Code 标准扩展目录中的 Codex 进程时，会提示保存任务并完全退出 VS Code；仅关闭扩展面板可能无法停止后台进程。路径识别仅用于提示，不授予进程清理权限。退出后仍会复查，所有阻塞进程停止前不会替换认证。切换期间不要从终端、IDE 或 Dock 同时启动 ChatGPT / Codex。
 
 如果添加账号时取消登录，从工具选择之前保存的账号即可恢复。登录过期或服务端撤销令牌时仍需正常登录，再更新备份。浏览器可能记住上一个账号，登录时请核对实际选择。
 
@@ -89,12 +89,12 @@ xcodebuild -project Prism.xcodeproj -scheme Prism \
   -archivePath build/Prism.xcarchive ARCHS=arm64 archive
 
 # 只对已有归档打包，不重复编译或重复创建 DMG
-bash scripts/packageRelease.sh v0.3.1
+bash scripts/packageRelease.sh v0.3.2
 ```
 
 再次运行时，为测试报告使用新的 `-resultBundlePath`，或移走之前的报告；Xcode 不覆盖已有 `.xcresult`。DerivedData 和用户个人 Xcode 设置由 Git 忽略。没有新增 XcodeGen 或 Tuist；Sparkle 2.9.6 通过 Swift Package Manager 固定版本和提交号，`Package.resolved` 需提交。首次构建需要联网解析依赖。
 
-归档中的应用位于 `build/Prism.xcarchive/Products/Applications/Prism.app`；最终分发文件位于 `build/release/`，包含 `prism-v0.3.1-macos-arm64.dmg`、`SHA256SUMS.txt` 和发行说明。打包脚本先读取 Xcode 的有效配置，并核对归档中版本、标识、最低系统版本和可执行文件名，拒绝版本不一致的归档。
+归档中的应用位于 `build/Prism.xcarchive/Products/Applications/Prism.app`；最终分发文件位于 `build/release/`，包含 `prism-v0.3.2-macos-arm64.dmg`、`SHA256SUMS.txt` 和发行说明。打包脚本先读取 Xcode 的有效配置，并核对归档中版本、标识、最低系统版本和可执行文件名，拒绝版本不一致的归档。
 
 保留的脚本只有资源生成和分发职责：
 
@@ -124,19 +124,19 @@ CI 使用只读仓库权限，官方 Actions 固定到提交号，checkout 不�
 
 发布步骤：
 
-1. 更新 `config/app.xcconfig` 中三段数字版本 `MARKETING_VERSION`（如 `0.3.1`）及递增的 `CURRENT_PROJECT_VERSION`。不要在 `info.plist` 或工作流中重复写版本。
+1. 更新 `config/app.xcconfig` 中三段数字版本 `MARKETING_VERSION`（如 `0.3.2`）及递增的 `CURRENT_PROJECT_VERSION`。不要在 `info.plist` 或工作流中重复写版本。
 2. 将代码合并到 `main` 并确认 CI 通过。建议把 `Verify macOS arm64` 设置为必需检查，限制 `v*` 标签创建权限。
 3. 在待发布提交上创建并推送匹配版本的标签；当前版本示例，仅在准备发布时执行：
 
    ```sh
-   git tag -a v0.3.1 -m 'Release v0.3.1'
-   git push origin v0.3.1
+   git tag -a v0.3.2 -m 'Release v0.3.2'
+   git push origin v0.3.2
    ```
 
 4. `release.yml` 首先通过 Xcode 解析配置并校验标签，再运行 XCTest、归档、生成 DMG 和 SHA-256 校验文件，使用受保护的更新密钥签署 DMG 并生成 `appcast.xml`，验证签名与应用内公钥一致后上传完整附件，再自动公开 Release。上传期间使用临时草稿，避免用户下载到不完整附件，无需人工发布。
 5. 打标签前编辑根目录 `releaseNotes.md`；该文件会同时嵌入更新订阅和发行说明。推送标签即表示确认发布，请在此前完成必要的安装包和账号切换验收。仅在 GitHub 编辑 Release 正文不会改变已签包对应的更新说明。已有相同标签的 Release 不会被覆盖；失败重试前先检查旧草稿，正式发布后应使用新版本。
 
-可单独运行 `bash scripts/packageRelease.sh v0.3.1 --check-only`，无需先构建归档。为避免旧附件混入，本地再次打包前需移走已有的 `build/release/`；CI 使用新运行环境。Xcode 普通构建不生成 DMG，分发阶段只生成一次 DMG。
+可单独运行 `bash scripts/packageRelease.sh v0.3.2 --check-only`，无需先构建归档。为避免旧附件混入，本地再次打包前需移走已有的 `build/release/`；CI 使用新运行环境。Xcode 普通构建不生成 DMG，分发阶段只生成一次 DMG。
 
 Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `GITHUB_TOKEN` 上传附件并自动公开 Release；无需 PAT 或 Apple Secrets，但签名步骤必须配置 `release-signing` Environment 中的 `SPARKLE_PRIVATE_KEY` Secret。PR 和普通 CI 不使用更新私钥。配置推送后才会在 GitHub 上运行，本地通过不能代替云端验证。
 
@@ -168,7 +168,7 @@ Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `
 本地正式更新包使用和普通 DMG 相同的归档，额外指定签名模式：
 
 ```sh
-bash scripts/packageRelease.sh v0.3.1 --signed
+bash scripts/packageRelease.sh v0.3.2 --signed
 ```
 
 本地签名只读取 `xelume-prism` 对应的更新密钥；CI 只在签名步骤通过标准输入传递 Secret。Sparkle 官方 `generate_appcast` 生成元数据与 EdDSA 签名，`updateFeed.swift` 再以应用内公钥独立验证 DMG、版本、最低系统和固定下载地址。发布说明来自根目录 `releaseNotes.md`，第一版不生成增量包。

@@ -78,9 +78,38 @@ func runShutdownTests() async throws {
     try await expectFailure {
         try await ClientShutdown().quit(roots: [independent.root], operations: independent.operations)
     }
-    try expect(independent.signals.map { $0.0.pid } == [11, 11], "never signal independent CLI")
-    try expect(independent.confirmations[0].map(\.pid) == [11], "force dialog excludes independent CLI")
-    try expect(independent.processes.map(\.pid) == [12], "independent process remains alive")
+    try expect(!independent.quitCalled && independent.seconds == 0,
+               "independent CLI blocks before desktop quit or waiting")
+    try expect(independent.signals.isEmpty && independent.confirmations.isEmpty,
+               "preflight blocker never triggers signals or force confirmation")
+    try expect(independent.processes.map(\.pid) == [10, 11, 12], "all existing processes remain alive")
+
+    let extensionProcess = ProcessEntry(pid: 48407,
+        executable: "/Users/test/.vscode/extensions/openai.chatgpt-26.825.51511-darwin-arm64/bin/macos-aarch64/codex",
+        parentPID: 48305, startedSeconds: 100, startedMicroseconds: 1)
+    let editor = VirtualDesktop([extensionProcess])
+    var editorError = ""
+    do {
+        try await ClientShutdown().quit(roots: [editor.root], operations: editor.operations)
+    } catch { editorError = error.localizedDescription }
+    try expect(editorError.contains("VS Code 的 Codex 扩展") && editorError.contains("完全退出 VS Code")
+        && editorError.contains("48407") && editorError.contains("48305"),
+        "extension blocker names the host, recovery action, and process identifiers")
+    try expect(!editor.quitCalled && editor.signals.isEmpty, "extension guidance does not grant signal authority")
+    try expect(!mock(12, name: "openai.chatgpt-fake/codex").independentProcessGuidance.contains("VS Code"),
+               "unrelated paths retain generic guidance")
+
+    // Preflight is not sufficient: independent processes can appear while the client exits.
+    let lateIndependent = VirtualDesktop()
+    lateIndependent.onQuit = {
+        $0.remove(10)
+        $0.processes.append(mock(12, parent: 900))
+    }
+    try await expectFailure {
+        try await ClientShutdown().quit(roots: [lateIndependent.root], operations: lateIndependent.operations)
+    }
+    try expect(lateIndependent.quitCalled && lateIndependent.signals.isEmpty
+        && lateIndependent.processes.map(\.pid) == [12], "final check still blocks newly started independent CLI")
 
     let canceled = VirtualDesktop([mock(11, parent: 10)])
     canceled.onQuit = { _ in } // Official quit request was canceled or hung.
