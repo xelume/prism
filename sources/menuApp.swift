@@ -12,7 +12,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var refreshTimer: Timer?
     private var menuIsOpen = false
     private var accountItems: [String: [NSMenuItem]] = [:]
-    private var refreshItem: NSMenuItem?
+    private var accountStatusItem: NSMenuItem?
+    private var authorizationItem: NSMenuItem?
+    private var accountSeparator: NSMenuItem?
     private lazy var usage = UsageMonitor(load: { [weak self] in
         guard let self else { throw CancellationError() }
         let book = try await Task.detached { try KeychainVault().load(allowInteraction: false) }.value
@@ -40,7 +42,11 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         usage.onChange = { [weak self] in self?.rebuildMenu() }
         rebuildMenu()
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.usage.refresh() }
+            Task { @MainActor in
+                guard let self else { return }
+                self.usage.refresh()
+                if self.menuIsOpen { self.updateUsageItems() }
+            }
         }
         timer.tolerance = 5
         RunLoop.main.add(timer, forMode: .common)
@@ -51,7 +57,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         rebuildMenu()
         menuIsOpen = true
-        usage.refresh()
+        usage.refreshOnMenuOpen()
     }
 
     func menuDidClose(_ menu: NSMenu) {
@@ -63,10 +69,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func rebuildMenu() {
         guard status != nil else { return }
         if menuIsOpen {
-            // Keep the tracked menu's geometry and selection stable. Apply new rows,
-            // ordering and text next time it opens; only action availability changes now.
-            refreshItem?.isEnabled = !busy && !usage.refreshing
-            updateItem?.isEnabled = updates.canCheck
+            // Update existing rows without replacing the tracked menu or reordering accounts.
+            updateUsageItems()
             return
         }
         let menu = status.menu ?? NSMenu()
@@ -76,33 +80,10 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.minimumWidth = 340
         accountItems = [:]
         addItem("切换账号", to: menu)
-        if usage.loadError != nil {
-            addItem("无法读取账号…", action: #selector(accountLoadError), to: menu)
-            addItem("授权并重试…", action: #selector(authorizeAccounts), to: menu)
-        } else {
-            if usage.accounts.isEmpty {
-                addItem(usage.refreshing ? "正在读取账号…" : "暂无已保存账号", to: menu)
-            } else if usage.currentIdentity == nil {
-                addItem("当前未登录", to: menu)
-            }
-            let orderedAccounts = usage.accounts.filter { $0.identity == usage.currentIdentity }
-                + usage.accounts.filter { $0.identity != usage.currentIdentity }
-            for account in orderedAccounts {
-                let header = addItem(account.label, action: #selector(switchAccount(_:)), to: menu)
-                header.representedObject = account.identity
-                let five = addItem("", to: menu)
-                let week = addItem("", to: menu)
-                five.indentationLevel = 1
-                week.indentationLevel = 1
-                accountItems[account.identity] = [header, five, week]
-            }
-        }
-        menu.addItem(.separator())
-        refreshItem = addItem("刷新额度", action: #selector(refreshUsage), to: menu)
-        refreshItem?.keyEquivalent = "r"
-        refreshItem?.keyEquivalentModifierMask = .command
-        addItem(usage.refreshing ? "正在刷新…" : "每 5 分钟自动刷新", to: menu)
-        menu.addItem(.separator())
+        accountStatusItem = addItem("", to: menu)
+        authorizationItem = addItem("授权并重试…", action: #selector(authorizeAccounts), to: menu)
+        accountSeparator = .separator()
+        menu.addItem(accountSeparator!)
         addItem("添加账号…", action: #selector(addAccount), to: menu)
         addItem("保存／更新当前账号…", action: #selector(saveCurrent), to: menu)
         menu.addItem(.separator())
@@ -128,7 +109,50 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateUsageItems() {
-        refreshItem?.isEnabled = !busy && !usage.refreshing
+        guard let menu = status.menu, let accountSeparator else { return }
+        let actionsAllowed = !busy && !updates.installationGate.installationRequested
+        updateItem?.title = updates.menuTitle
+        updateItem?.isHidden = updates.availableVersion == nil
+        updateItem?.isEnabled = updates.canCheck
+
+        let loadFailed = usage.loadError != nil
+        accountStatusItem?.title = loadFailed ? "无法读取账号…"
+            : usage.accounts.isEmpty ? (usage.refreshing ? "正在读取账号…" : "暂无已保存账号")
+            : "当前未登录"
+        accountStatusItem?.action = loadFailed ? #selector(accountLoadError) : nil
+        accountStatusItem?.isEnabled = loadFailed && actionsAllowed
+        accountStatusItem?.isHidden = !loadFailed && !usage.accounts.isEmpty && usage.currentIdentity != nil
+        authorizationItem?.isHidden = !loadFailed
+        authorizationItem?.isEnabled = actionsAllowed
+
+        // Append newly loaded accounts; retain existing row identities until the menu closes.
+        let orderedAccounts = usage.accounts.filter { $0.identity == usage.currentIdentity }
+            + usage.accounts.filter { $0.identity != usage.currentIdentity }
+        for account in orderedAccounts where accountItems[account.identity] == nil {
+            let header = NSMenuItem(title: account.label, action: #selector(switchAccount(_:)), keyEquivalent: "")
+            header.target = self
+            header.representedObject = account.identity
+            let rows = [header, NSMenuItem(title: "", action: nil, keyEquivalent: ""),
+                        NSMenuItem(title: "", action: nil, keyEquivalent: "")]
+            for row in rows.dropFirst() {
+                row.indentationLevel = 1
+                row.isEnabled = false
+            }
+            for row in rows { menu.insertItem(row, at: menu.index(of: accountSeparator)) }
+            accountItems[account.identity] = rows
+        }
+        let identities = Set(usage.accounts.map(\.identity))
+        for (identity, rows) in accountItems where !identities.contains(identity) {
+            rows[0].attributedTitle = nil
+            rows[0].title = loadFailed ? "账号暂不可用" : "账号已移除"
+            rows[0].state = .off
+            rows[0].isEnabled = false
+            rows[0].setAccessibilityLabel(rows[0].title)
+            for row in rows.dropFirst() {
+                row.attributedTitle = nil
+                row.title = "额度暂不可用"
+            }
+        }
         let now = Date()
         for account in usage.accounts {
             guard let rows = accountItems[account.identity] else { continue }
@@ -141,6 +165,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             rows[0].state = current ? .on : .off
             rows[0].isEnabled = !busy && !updates.installationGate.installationRequested
                 && !current && usage.savedIdentities.contains(account.identity)
+            rows[0].attributedTitle = nil
             if current {
                 rows[0].attributedTitle = NSAttributedString(string: rows[0].title,
                     attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)])
@@ -217,10 +242,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return "\(hours)小时" + (remainder == 0 ? "" : "\(remainder)分钟") + "后重置"
     }
 
-    @objc private func refreshUsage() { usage.refresh(force: true) }
-
     @objc private func accountLoadError() {
-        notify("无法读取账号", usage.loadError ?? "请重新刷新账号。")
+        notify("无法读取账号", usage.loadError ?? "请重新展开菜单重试。")
     }
 
     @objc private func authorizeAccounts() {

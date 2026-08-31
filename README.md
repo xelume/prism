@@ -21,7 +21,7 @@
 ## 所有账号额度与后台刷新
 
 - 菜单每个账号显示名称及两行额度：**5h 剩余百分比和距离重置的小时／分钟数**、**Week 剩余百分比和本机时区的具体重置日期、时间**。当前账号置顶，其他账号保持保存顺序。移除鼠标悬停提示，不显示最后刷新时间；登录失效、查询失败等异常才标注状态。时间已到但没有获得新的额度数据时显示等待重置确认，不自动推断额度恢复。长名称截断显示，切换确认框显示完整名称，VoiceOver 可读取完整名称及额度。当前已登录但尚未保存的账号也显示额度，并标记“未保存账号”；保存后才能在列表中切回它。
-- 启动时自动查询；每轮结束后约 5 分钟刷新一次（计时器约 30 秒检查一次，休眠期间不查询）。菜单中的“刷新额度”可立即刷新。最多同时查询 3 个账号，同一轮不会重复启动。菜单提供 ⌘R 刷新与 ⌘Q 退出快捷键；菜单展开期间保持文字、宽度和顺序稳定，新数据在下次展开时呈现。
+- 启动时自动查询；每轮结束后约 5 分钟刷新一次（计时器约 30 秒检查一次，休眠期间不查询）。展开菜单先显示缓存，距离上一轮查询结束满 30 秒才重新查询；首次没有查询记录时立即查询，已有查询尚未完成时复用同一轮请求，仍遵守各账号的限流退避。最多同时查询 3 个账号。结果返回后原位更新额度与状态，展开期间不重排已有账号。菜单不单独显示刷新入口或定时刷新提示，保留 ⌘Q 退出快捷键。
 - 使用各账号已有的 access token 和账号请求头，向固定的 `https://chatgpt.com/backend-api/wham/usage` 发起 GET。该地址和字段来自检查过的官方桌面客户端，是**内部接口，不保证长期兼容**。不调用额度重置、购买、登录或退出登录接口。
 - 不为了查询临时切换账号，不启动第二个 Codex 进程，也不关闭官方客户端。当前账号优先使用文件中刚读取的最新认证；其他账号使用已保存备份。查询不会写入 `auth.json`、更新钥匙串或修改官方认证状态。
 - **不会自动刷新 access token 或轮换 refresh token。** 后台账号的令牌失效后将提示重新登录并保存；账号服务端撤销登录、权限不足、网络故障或接口变化也可能导致无法查询。401 标记登录失效，403 标记拒绝访问，不能把所有失败都当成额度耗尽。
@@ -89,12 +89,12 @@ xcodebuild -project Prism.xcodeproj -scheme Prism \
   -archivePath build/Prism.xcarchive ARCHS=arm64 archive
 
 # 只对已有归档打包，不重复编译或重复创建 DMG
-bash scripts/packageRelease.sh v0.3.0
+bash scripts/packageRelease.sh v0.3.1
 ```
 
 再次运行时，为测试报告使用新的 `-resultBundlePath`，或移走之前的报告；Xcode 不覆盖已有 `.xcresult`。DerivedData 和用户个人 Xcode 设置由 Git 忽略。没有新增 XcodeGen 或 Tuist；Sparkle 2.9.6 通过 Swift Package Manager 固定版本和提交号，`Package.resolved` 需提交。首次构建需要联网解析依赖。
 
-归档中的应用位于 `build/Prism.xcarchive/Products/Applications/Prism.app`；最终分发文件位于 `build/release/`，包含 `prism-v0.3.0-macos-arm64.dmg`、`SHA256SUMS.txt` 和发行说明。打包脚本先读取 Xcode 的有效配置，并核对归档中版本、标识、最低系统版本和可执行文件名，拒绝版本不一致的归档。
+归档中的应用位于 `build/Prism.xcarchive/Products/Applications/Prism.app`；最终分发文件位于 `build/release/`，包含 `prism-v0.3.1-macos-arm64.dmg`、`SHA256SUMS.txt` 和发行说明。打包脚本先读取 Xcode 的有效配置，并核对归档中版本、标识、最低系统版本和可执行文件名，拒绝版本不一致的归档。
 
 保留的脚本只有资源生成和分发职责：
 
@@ -129,14 +129,14 @@ CI 使用只读仓库权限，官方 Actions 固定到提交号，checkout 不�
 3. 在待发布提交上创建并推送匹配版本的标签；当前版本示例，仅在准备发布时执行：
 
    ```sh
-   git tag -a v0.3.0 -m 'Release v0.3.0'
-   git push origin v0.3.0
+   git tag -a v0.3.1 -m 'Release v0.3.1'
+   git push origin v0.3.1
    ```
 
 4. `release.yml` 首先通过 Xcode 解析配置并校验标签，再运行 XCTest、归档、生成 DMG 和 SHA-256 校验文件，使用受保护的更新密钥签署 DMG 并生成 `appcast.xml`，验证签名与应用内公钥一致后创建 **Release 草稿**。
 5. 打标签前编辑根目录 `releaseNotes.md`；该文件会同时嵌入更新订阅和草稿说明。人工验收安装包和账号切换后发布草稿。仅在 GitHub 编辑 Release 正文不会改变已签包对应的更新说明。已有相同标签的 Release 不会被覆盖；失败重试前先检查旧草稿，正式发布后应使用新版本。
 
-可单独运行 `bash scripts/packageRelease.sh v0.3.0 --check-only`，无需先构建归档。为避免旧附件混入，本地再次打包前需移走已有的 `build/release/`；CI 使用新运行环境。Xcode 普通构建不生成 DMG，分发阶段只生成一次 DMG。
+可单独运行 `bash scripts/packageRelease.sh v0.3.1 --check-only`，无需先构建归档。为避免旧附件混入，本地再次打包前需移走已有的 `build/release/`；CI 使用新运行环境。Xcode 普通构建不生成 DMG，分发阶段只生成一次 DMG。
 
 Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `GITHUB_TOKEN` 创建草稿；无需 PAT 或 Apple Secrets，但签名步骤必须配置 `release-signing` Environment 中的 `SPARKLE_PRIVATE_KEY` Secret。PR 和普通 CI 不使用更新私钥。配置推送后才会在 GitHub 上运行，本地通过不能代替云端验证。
 
@@ -146,7 +146,7 @@ Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `
 
 ## 应用更新
 
-“关于 Prism…”显示图标、版本、xelume 团队、项目链接及安全说明；关于窗口和菜单的“检查更新…”共用一个 Sparkle 更新器。用户同意自动检查后约每天检查一次，也可在关于窗口随时关闭。后台发现更新只修改菜单入口，不抢焦点；用户主动点击后才展示更新说明、下载和安装进度。没有更新或请求失败由 Sparkle 标准窗口提示；网络失败不会误报为最新版本。
+“关于 Prism…”显示图标、版本、xelume 团队、项目链接及安全说明；关于窗口保留“检查更新…”；菜单仅在发现新版本时显示“更新至…”入口，两处共用一个 Sparkle 更新器。用户同意自动检查后约每天检查一次，也可在关于窗口随时关闭。后台发现更新只修改菜单入口，不抢焦点；用户主动点击后才展示更新说明、下载和安装进度。没有更新或请求失败由 Sparkle 标准窗口提示；网络失败不会误报为最新版本。
 
 不自动下载、不静默安装、不发送账号、令牌或系统分析信息。更新仅替换本工具并重启，不结束官方客户端、不修改认证、钥匙串或任务文件。安装与账号操作互斥，下载期间可以正常使用；一旦请求安装就不再接受新账号操作，已有操作结束后才恢复安装。退出请求也不能打断账号操作。
 
@@ -168,7 +168,7 @@ Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `
 本地正式更新包使用和普通 DMG 相同的归档，额外指定签名模式：
 
 ```sh
-bash scripts/packageRelease.sh v0.3.0 --signed
+bash scripts/packageRelease.sh v0.3.1 --signed
 ```
 
 本地签名只读取 `xelume-prism` 对应的更新密钥；CI 只在签名步骤通过标准输入传递 Secret。Sparkle 官方 `generate_appcast` 生成元数据与 EdDSA 签名，`updateFeed.swift` 再以应用内公钥独立验证 DMG、版本、最低系统和固定下载地址。发布说明来自根目录 `releaseNotes.md`，第一版不生成增量包。

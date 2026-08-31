@@ -19,7 +19,7 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
     var isConfigured: Bool { controller != nil && configurationMessage == nil }
     var automaticallyChecks: Bool { controller?.updater.automaticallyChecksForUpdates ?? false }
     var menuTitle: String {
-        availableVersion.map { "发现新版本 \($0)…" } ?? "检查更新…"
+        availableVersion.map { "更新至 \($0)…" } ?? "检查更新…"
     }
 
     func start() {

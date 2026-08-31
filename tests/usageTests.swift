@@ -126,13 +126,29 @@ func runUsageTests() async throws {
     let probe = UsageProbe()
     await probe.reply(a.identity, .success(normal)); await probe.reply(b.identity, .success(swapped))
     let monitor = UsageMonitor(load: { loaded }, fetch: { try await probe.fetch($0) }, now: { clock })
-    monitor.refresh(); monitor.refresh(force: true)
+    monitor.refreshOnMenuOpen(); monitor.refreshOnMenuOpen()
     try await waitForUsage { !monitor.refreshing }
     let firstCount = await probe.count()
     try requireUsage(firstCount == 2, "no overlapping refresh batches")
     try requireUsage(monitor.states[a.identity]?.value == normal && monitor.states[b.identity]?.value == swapped, "per-account cache isolation")
     monitor.refresh()
     try requireUsage(!monitor.refreshing, "cached batch is not polled before five minutes")
+    monitor.refreshOnMenuOpen()
+    try requireUsage(!monitor.refreshing, "reopening immediately uses cached usage")
+    clock = clock.addingTimeInterval(29)
+    monitor.refreshOnMenuOpen()
+    try requireUsage(!monitor.refreshing, "menu cooldown lasts thirty seconds after completion")
+    let cachedCount = await probe.count()
+    try requireUsage(cachedCount == firstCount, "repeated opens during cooldown send no requests")
+    clock = clock.addingTimeInterval(1)
+    monitor.refreshOnMenuOpen()
+    monitor.refreshOnMenuOpen()
+    try await waitForUsage { !monitor.refreshing }
+    let reopenedCount = await probe.count()
+    try requireUsage(reopenedCount == firstCount + 2,
+        "menu refresh starts at thirty seconds and coalesces in-flight requests")
+    monitor.refreshOnMenuOpen()
+    try requireUsage(!monitor.refreshing, "completed menu refresh starts a new cooldown")
     clock = clock.addingTimeInterval(300)
     await probe.reply(a.identity, .failure(.expired)); await probe.reply(b.identity, .success(normal))
     monitor.refresh()
@@ -179,8 +195,18 @@ func runUsageTests() async throws {
         if auth.identity == a.identity { return await gate.fetch() }
         return swapped
     })
+    var receivedPartialResult = false
+    switching.onChange = {
+        if switching.refreshing && switching.states[b.identity]?.value == swapped
+            && switching.states[a.identity]?.value == nil {
+            receivedPartialResult = true
+        }
+    }
     switching.refresh()
     try await waitForUsage { await gate.didStart() }
+    try await waitForUsage { receivedPartialResult }
+    try requireUsage(switching.refreshing, "completed accounts notify the open menu while another account is pending")
+    switching.onChange = nil
     switching.pause()
     var onlyB = AccountBook(); onlyB.remember(b, label: "B")
     generationLoad = try UsageAccounts(book: onlyB, current: b.data)

@@ -41,6 +41,7 @@ final class UsageMonitor {
     private var task: Task<Void, Never>?
     private var generation = UUID()
     private var nextRefresh = Date.distantPast
+    private var lastRefreshCompletedAt: Date?
     private var paused = false
     private(set) var accounts: [SavedAccount] = []
     private(set) var savedIdentities: Set<String> = []
@@ -67,6 +68,11 @@ final class UsageMonitor {
         task = Task { [weak self] in await self?.run(revision: revision) }
     }
 
+    func refreshOnMenuOpen() {
+        if let lastRefreshCompletedAt, now().timeIntervalSince(lastRefreshCompletedAt) < 30 { return }
+        refresh(force: true)
+    }
+
     func pause() {
         paused = true
         generation = UUID()
@@ -82,7 +88,9 @@ final class UsageMonitor {
             if generation == revision {
                 task = nil
                 refreshing = false
-                nextRefresh = now().addingTimeInterval(300)
+                let completedAt = now()
+                lastRefreshCompletedAt = completedAt
+                nextRefresh = completedAt.addingTimeInterval(300)
                 onChange?()
             }
         }
