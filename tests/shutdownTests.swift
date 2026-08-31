@@ -179,6 +179,13 @@ func runShutdownTests() async throws {
     try await expectFailure { try await ClientShutdown().quit(roots: [], operations: orphan.operations) }
     try expect(orphan.signals.isEmpty && orphan.confirmations.isEmpty, "unproven preexisting orphans are never killed")
 
+    let crashpad = VirtualDesktop([ProcessEntry(pid: 12,
+        executable: "/Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Helpers/browser_crashpad_handler",
+        parentPID: 1, startedSeconds: 100, startedMicroseconds: 12)])
+    try await ClientShutdown().quit(roots: [crashpad.root], operations: crashpad.operations)
+    try expect(crashpad.processes.map(\.pid) == [12] && crashpad.signals.isEmpty,
+               "orphaned crash reporter neither blocks switching nor receives a signal")
+
     let exitedBeforeRequest = VirtualDesktop([mock(11, parent: 10)])
     let captured = exitedBeforeRequest.processes
     exitedBeforeRequest.remove(10)

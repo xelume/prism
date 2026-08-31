@@ -21,6 +21,9 @@ struct ProcessEntry {
 
     var isCodex: Bool {
         let name = URL(fileURLWithPath: executable).lastPathComponent.lowercased()
+        // Chromium's crash reporter can remain orphaned after ChatGPT exits. It only
+        // writes crash diagnostics and does not consume the shared authentication file.
+        if name == "browser_crashpad_handler" { return false }
         return name == "codex" || name.hasPrefix("codex-") || name == "chatgpt"
             || name.hasPrefix("chatgpt helper") || executable.contains("/ChatGPT.app/")
     }
