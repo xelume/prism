@@ -9,7 +9,7 @@ app=$1
 output=$2
 appName=$(basename "$app")
 test -d "$app"
-codesign --verify --strict "$app"
+codesign --verify --deep --strict "$app"
 mkdir -p build
 work=$(mktemp -d "$PWD/build/dmg.XXXXXX")
 mounted=false
@@ -29,7 +29,7 @@ trap 'exit 143' TERM
 mkdir -p "$work/content" "$work/mount"
 ditto "$app" "$work/content/$appName"
 ln -s /Applications "$work/content/Applications"
-hdiutil create -srcfolder "$work/content" -volname 'Xelume Switch' \
+hdiutil create -srcfolder "$work/content" -volname 'Prism' \
   -fs HFS+ -format UDZO "$work/image.dmg" -quiet
 hdiutil verify "$work/image.dmg" -quiet
 # No Finder automation or GUI session is needed on a GitHub-hosted runner.
@@ -40,7 +40,7 @@ test "$(readlink "$work/mount/Applications")" = /Applications
 cmp "$app/Contents/Info.plist" "$work/mount/$appName/Contents/Info.plist"
 executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
 cmp "$app/Contents/MacOS/$executable" "$work/mount/$appName/Contents/MacOS/$executable"
-codesign --verify --strict "$work/mount/$appName"
+codesign --verify --deep --strict "$work/mount/$appName"
 hdiutil detach "$work/mount" -quiet
 mounted=false
 mkdir -p "$(dirname "$output")"

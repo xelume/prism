@@ -1,0 +1,18 @@
+// Shared app metadata. Keep releases and local Xcode builds on the same version.
+MARKETING_VERSION = 0.3.0
+CURRENT_PROJECT_VERSION = 6
+MACOSX_DEPLOYMENT_TARGET = 26.0
+SWIFT_VERSION = 5.0
+SDKROOT = macosx
+
+// Local/CI development distribution only; no Developer ID or notarization yet.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+ENABLE_APP_SANDBOX = NO
+ENABLE_HARDENED_RUNTIME = NO
+
+// The public key is safe to commit. Never put the private update key here.
+// An empty key leaves local builds usable, with an explicit update setup message.
+SPARKLE_PUBLIC_ED_KEY = eMxVeg/Q6GqGtvhHU5bNJNX4wLVxgE+7REOLPh1vFHw=
+SPARKLE_FEED_URL = https:/$()/xelume.github.io/prism/appcast.xml

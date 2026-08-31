@@ -73,7 +73,7 @@ final class UsageClient: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
         request.setValue("Bearer " + auth.accessToken, forHTTPHeaderField: "Authorization")
         request.setValue(auth.accountID, forHTTPHeaderField: "ChatGPT-Account-Id")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Xelume Switch", forHTTPHeaderField: "originator")
+        request.setValue("Prism", forHTTPHeaderField: "originator")
         return request
     }
 

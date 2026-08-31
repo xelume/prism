@@ -6,6 +6,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let runtime = MacRuntime()
     private let vault = KeychainVault()
     private var busy = false
+    private let updates = AppUpdates()
+    private var aboutWindow: AboutWindow?
+    private var updateItem: NSMenuItem?
     private var refreshTimer: Timer?
     private var menuIsOpen = false
     private var accountItems: [String: [NSMenuItem]] = [:]
@@ -28,7 +31,12 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status.button?.image = icon
             status.button?.imagePosition = .imageLeading
         }
-        status.button?.setAccessibilityLabel("Xelume Switch — ChatGPT / Codex 账号切换")
+        status.button?.setAccessibilityLabel("Prism — ChatGPT / Codex 账号切换")
+        updates.onChange = { [weak self] in
+            self?.aboutWindow?.refresh()
+            self?.rebuildMenu()
+        }
+        updates.start()
         usage.onChange = { [weak self] in self?.rebuildMenu() }
         rebuildMenu()
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
@@ -58,6 +66,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // Keep the tracked menu's geometry and selection stable. Apply new rows,
             // ordering and text next time it opens; only action availability changes now.
             refreshItem?.isEnabled = !busy && !usage.refreshing
+            updateItem?.isEnabled = updates.canCheck
             return
         }
         let menu = status.menu ?? NSMenu()
@@ -97,8 +106,10 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addItem("添加账号…", action: #selector(addAccount), to: menu)
         addItem("保存／更新当前账号…", action: #selector(saveCurrent), to: menu)
         menu.addItem(.separator())
-        addItem("关于 Xelume Switch", action: #selector(about), to: menu)
-        let quit = addItem("退出 Xelume Switch", action: #selector(exitTool), to: menu)
+        addItem("关于 Prism…", action: #selector(about), to: menu)
+        updateItem = addItem(updates.menuTitle, action: #selector(checkForUpdates), to: menu)
+        updateItem?.isEnabled = updates.canCheck
+        let quit = addItem("退出 Prism", action: #selector(exitTool), to: menu)
         quit.keyEquivalent = "q"
         quit.keyEquivalentModifierMask = .command
         status.menu = menu
@@ -111,7 +122,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func addItem(_ title: String, action: Selector? = nil, to menu: NSMenu) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
-        item.isEnabled = action != nil && !busy
+        item.isEnabled = action != nil && !busy && !updates.installationGate.installationRequested
         menu.addItem(item)
         return item
     }
@@ -128,7 +139,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let suffix = badges.isEmpty ? "" : "   " + badges.joined(separator: " · ")
             rows[0].title = compactAccountName(account.label) + suffix
             rows[0].state = current ? .on : .off
-            rows[0].isEnabled = !busy && !current && usage.savedIdentities.contains(account.identity)
+            rows[0].isEnabled = !busy && !updates.installationGate.installationRequested
+                && !current && usage.savedIdentities.contains(account.identity)
             if current {
                 rows[0].attributedTitle = NSAttributedString(string: rows[0].title,
                     attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)])
@@ -290,12 +302,19 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func perform(_ operation: @escaping @MainActor () async throws -> Void) {
-        guard !busy else { return }
+        guard !busy, updates.installationGate.beginAccountOperation() else { return }
         busy = true
+        aboutWindow?.refresh()
         usage.pause()
         rebuildMenu()
         Task { @MainActor in
-            defer { busy = false; usage.resume(); rebuildMenu() }
+            defer {
+                busy = false
+                updates.installationGate.endAccountOperation()
+                usage.resume()
+                aboutWindow?.refresh()
+                rebuildMenu()
+            }
             do { try await operation() }
             catch { show(error) }
         }
@@ -331,7 +350,16 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func about() {
-        notify("Xelume Switch", "仅更换默认 ~/.codex/auth.json，保留设置、插件和任务文件。账号备份存入本机钥匙串，不同步到 iCloud。\n\n仅支持已检查版本 26.825.51511 的文件认证。会清理已确认属于客户端的残留进程；强制结束前需确认，独立终端／IDE 进程不会自动结束。不会读取密码、修改官方应用或自动登录。后台每 5 分钟使用各账号已有认证向官方服务查询额度，不自动续期或改写登录。切换期间请勿另行启动 Codex。\n\n本地任务文件不按账号隔离，切换账号不会隔离数据；云端会话、订阅、权限和插件授权由当前账号决定。本工具未经 OpenAI 官方支持。")
+        if aboutWindow == nil { aboutWindow = AboutWindow(updates: updates) }
+        aboutWindow?.present()
+    }
+
+    @objc private func checkForUpdates() { updates.checkForUpdates(nil) }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Sparkle can request termination without the relaunch delegate (e.g.
+        // installation on quit). Keep that path from interrupting an auth write too.
+        busy ? .terminateCancel : .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {

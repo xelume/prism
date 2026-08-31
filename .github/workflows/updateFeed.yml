@@ -1,0 +1,81 @@
+name: Publish update feed
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Each run re-reads the latest public release, so delayed events cannot advertise
+# their older triggering tag. Never cancel an in-progress Pages deployment.
+concurrency:
+  group: prism-update-feed
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'xelume/prism' && (github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false)
+    runs-on: macos-26
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Resolve trusted update configuration
+        run: |
+          mkdir -p build
+          xcodebuild -resolvePackageDependencies -project Prism.xcodeproj -scheme Prism \
+            -clonedSourcePackagesDirPath build/SourcePackages -onlyUsePackageVersionsFromResolvedFile
+          xcodebuild -project Prism.xcodeproj -scheme Prism -configuration Release \
+            -destination 'generic/platform=macOS' -clonedSourcePackagesDirPath build/SourcePackages \
+            -disableAutomaticPackageResolution -showBuildSettings -json > build/updateSettings.json
+      - name: Download latest public stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/xelume/prism/releases/latest > build/publicRelease.json
+          tag=$(python3 - <<'PY'
+          import json, re
+          release = json.load(open('build/publicRelease.json'))
+          assert release['draft'] is False and release['prerelease'] is False
+          assert release['published_at']
+          assert re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', release['tag_name'])
+          print(release['tag_name'])
+          PY
+          )
+          gh release download "$tag" --repo xelume/prism --dir build/publicUpdate \
+            --pattern appcast.xml --pattern 'prism-*-macos-arm64.dmg'
+      - name: Verify signature and prevent feed rollback
+        run: |
+          status=$(curl --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --max-time 30 --output build/previousAppcast.xml --write-out '%{http_code}' \
+            https://xelume.github.io/prism/appcast.xml)
+          previous=build/previousAppcast.xml
+          case "$status" in
+            200) ;;
+            404) previous=build/noPreviousAppcast.xml ;;
+            *) echo 'Cannot verify previous update feed; refusing deployment.' >&2; exit 1 ;;
+          esac
+          xcrun swift scripts/updateFeed.swift stage build/publicRelease.json build/publicUpdate \
+            build/updateSettings.json "$previous" build/updateSite
+      - name: Package only the verified public feed
+        run: tar -cf build/artifact.tar -C build/updateSite .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: github-pages
+          path: build/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
+      - name: Deploy verified feed
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

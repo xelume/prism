@@ -1,4 +1,4 @@
-# Xelume Switch
+# Prism
 
 本机 Mac 菜单栏工具：正常退出官方 ChatGPT → 保存当前最新认证 → 恢复所选账号认证 → 重开官方 ChatGPT。
 
@@ -6,7 +6,7 @@
 
 ## 使用
 
-1. 打开 `build/xelumeSwitch.dmg`，将 `Xelume Switch.app` 拖入 Applications，推出磁盘映像后从“应用程序”启动。菜单栏出现星烁图标，点击即可展开账号菜单。启动后自动读取已保存账号及默认文件认证，并查询额度；首次使用或重新构建后可能需要点击“授权并重试”允许本工具访问钥匙串。后台读取不会主动弹出钥匙串授权框。
+1. 打开下载的 DMG，将 `Prism.app` 拖入 Applications，推出磁盘映像后从“应用程序”启动。菜单栏出现星烁图标，点击即可展开账号菜单。启动后自动读取已保存账号及默认文件认证，并查询额度；首次使用或重新构建后可能需要点击“授权并重试”允许本工具访问钥匙串。后台读取不会主动弹出钥匙串授权框。
 2. 选择“保存／更新当前账号”，命名，例如“个人”。工具正常退出 ChatGPT、保存认证后重开。
 3. 选择“添加账号”。工具先备份当前认证，再移除当前认证文件并重开客户端；不会调用服务端退出登录。由你在官方登录流程中选择另一个账号。
 4. 登录完成后，选择“保存／更新当前账号”，命名为“工作”。
@@ -44,65 +44,140 @@
 - **保留本地数据并不隔离账号数据。** 云端会话、订阅、权限和第三方插件授权仍由当前账号决定，不保证换号后能使用原账号云端任务。工具不会复制或合并云端数据。
 - 从普通 Dock 图标打开官方客户端会使用最后一次替换后的默认认证。第一版不支持自定义 `CODEX_HOME`、其他副本、旧版 ChatGPT Classic 或远程主机。
 - 本机构建使用临时签名，未公证；重复构建后系统可能重新请求钥匙串许可。应用只针对当前 Mac 架构构建。
-- 品牌名称已改为 Xelume Switch；为兼容已保存的账号，应用标识、钥匙串服务名以及 `Library/Application Support/ChatGPT Account Switcher` 存储路径保持不变。
+- 应用对外名称为 Prism，团队为 xelume；为兼容已保存的账号，应用标识、钥匙串服务名以及 `Library/Application Support/ChatGPT Account Switcher` 存储路径保持不变。
 
-## 构建与验证
+## Xcode 工程
 
-使用已安装的 Xcode Command Line Tools，无第三方依赖或依赖下载：
+安装完整 Xcode 26 或更新版本（仅 Command Line Tools 不足以运行 XCTest），打开 `Prism.xcodeproj`，选择共享 Scheme **Prism** 和 **My Mac**：
 
-构建从仓库内的 `assets/logo.svg` 生成应用 `.icns`（16–1024px）及菜单栏模板图标（18/36px）。原始 SVG 不变；应用图标加中性浅色底以适配深浅背景，菜单栏由 macOS 自动着色。SVG 源文件及生成脚本提交到 Git，仓库可独立克隆构建，不依赖父目录资源。生成资源位于 `build/icons`，由 `build/` 忽略规则排除，构建时一并放入应用包并签名。
+- **⌘B / Build**：由 Xcode 编译源码、生成图标、组装 `.app` 并临时签名。
+- **⌘R / Run**：启动菜单栏应用进行调试；这会按应用正常行为读取当前登录和查询额度。
+- **⌘U / Test**：运行独立 XCTest，不启动主应用，不访问真实账号。
+- **Product → Archive**：生成 Release 归档，可在 Organizer 查看。
+
+工程包含三个 Target：应用 `Prism`、测试 `PrismTests`，以及仅供测试使用的 C 子进程 `ShutdownFixture`。测试直接编译非 UI 源码，未设置应用宿主；测试子进程由 Xcode 编译并复制到测试 Bundle 中，不依赖当前工作目录。不要为了运行测试给它配置主应用宿主。
+
+`config/app.xcconfig` 是版本和最低系统要求的唯一配置来源：`MARKETING_VERSION`、`CURRENT_PROJECT_VERSION`、`MACOSX_DEPLOYMENT_TARGET`。`info.plist` 使用 Xcode 变量引用这些值，应用标识及可执行文件名保持原样。当前默认仍为 ad-hoc 临时签名，不要求 Apple 开发者账号，不代表已公证。
+
+图标源文件仍为 `assets/logo.svg`。工程的 **Generate SVG icon resources** 构建阶段运行 `scripts/generateIcons.swift`，生成 `.icns` 与菜单栏 PNG；声明输入／输出依赖，生成文件放在 Xcode 派生目录和应用资源目录，不提交 Git。应用的源码编译、资源目录及签名由 Xcode 负责，不再手动组装应用包。
+
+命令行使用与 Xcode 相同的 Scheme（在仓库根目录执行）：
 
 ```sh
-bash scripts/test.sh
-bash scripts/build.sh
+# 首次构建或依赖变更后，解析已锁定的 Sparkle 依赖
+xcodebuild -resolvePackageDependencies -project Prism.xcodeproj -scheme Prism \
+  -clonedSourcePackagesDirPath build/SourcePackages -onlyUsePackageVersionsFromResolvedFile
+
+# 编译，不启动应用
+xcodebuild -project Prism.xcodeproj -scheme Prism \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -clonedSourcePackagesDirPath build/SourcePackages -disableAutomaticPackageResolution \
+  -derivedDataPath build/DerivedData build
+
+# XCTest：测试报告保存在 .xcresult，可用 Xcode 打开
+xcodebuild -project Prism.xcodeproj -scheme Prism \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -clonedSourcePackagesDirPath build/SourcePackages -disableAutomaticPackageResolution \
+  -derivedDataPath build/DerivedData \
+  -resultBundlePath build/TestResults.xcresult test
+
+# 创建供 DMG 分发的 arm64 归档
+xcodebuild -project Prism.xcodeproj -scheme Prism \
+  -configuration Release -destination 'generic/platform=macOS' \
+  -clonedSourcePackagesDirPath build/SourcePackages -disableAutomaticPackageResolution \
+  -derivedDataPath build/DerivedData \
+  -archivePath build/Prism.xcarchive ARCHS=arm64 archive
+
+# 只对已有归档打包，不重复编译或重复创建 DMG
+bash scripts/packageRelease.sh v0.3.0
 ```
 
-构建输出为 `build/Xelume Switch.app` 和 `build/xelumeSwitch.dmg`。DMG 内包含应用与指向 `/Applications` 的快捷入口。使用 macOS 自带的 `hdiutil` 创建压缩只读映像；构建时自动校验映像、只读挂载验证入口和应用内容及签名，再卸载，不启动应用或 Finder。无需第三方打包依赖。DMG 仅改变分发形式，不代表应用已通过 Apple 公证。
+再次运行时，为测试报告使用新的 `-resultBundlePath`，或移走之前的报告；Xcode 不覆盖已有 `.xcresult`。DerivedData 和用户个人 Xcode 设置由 Git 忽略。没有新增 XcodeGen 或 Tuist；Sparkle 2.9.6 通过 Swift Package Manager 固定版本和提交号，`Package.resolved` 需提交。首次构建需要联网解析依赖。
 
-认证测试在随机临时目录内使用明确标记的模拟认证，不访问真实认证或钥匙串，不启动／关闭 ChatGPT。覆盖令牌刷新后的保存、账号往返切换、备份失败、启动失败恢复、并发修改拒绝、添加账号后恢复、配置及任务文件不变、权限与符号链接拒绝等。
+归档中的应用位于 `build/Prism.xcarchive/Products/Applications/Prism.app`；最终分发文件位于 `build/release/`，包含 `prism-v0.3.0-macos-arm64.dmg`、`SHA256SUMS.txt` 和发行说明。打包脚本先读取 Xcode 的有效配置，并核对归档中版本、标识、最低系统版本和可执行文件名，拒绝版本不一致的归档。
 
-退出流程使用模拟进程树和虚拟时钟，覆盖慢退出、残留清理、独立 CLI 保护、主程序退出被取消、强制结束确认、PID 复用、确认时新建／退出进程、取消后重试及检查失败。内核适配测试枚举本机进程元数据，并仅向测试自己创建的 `codex-shutdown-fixture` 子进程发送 `SIGTERM` / `SIGKILL`；不向真实 ChatGPT / Codex 发信号。
+保留的脚本只有资源生成和分发职责：
 
-额度测试使用模拟账号、响应和时钟，覆盖 5h／Week 周期识别、异常数据、账号请求头隔离、拒绝重定向、HTTP 错误分类、每 5 分钟刷新、限流退避、部分失败保留旧值、失效登录更新后重试、并发上限及切换后的迟到响应丢弃。不读取真实令牌，也不向额度接口发送真实请求。
+| 文件 | 职责 |
+| --- | --- |
+| `generateIcons.swift` | SVG 生成图标，由 Xcode 构建阶段调用 |
+| `createDmg.sh` | 创建、只读挂载验证并卸载 DMG |
+| `packageRelease.sh` | 校验版本和归档，生成一次 DMG、校验文件和发行说明 |
 
-**真实多账号额度、系统钥匙串交互、客户端退出和换号后身份确认需要用户实际验证。** 成功启动客户端不等于服务端已接受登录；以官方客户端头像菜单显示为准。
+`updateFeed.swift` 专门验证签名、版本和发布元数据，并生成可部署的订阅目录；不编译应用。
+
+旧的 `build.sh`、`test.sh` 和 `SELF_TEST` 应用入口已移除。DMG 内包含应用和 `/Applications` 快捷入口；不会自动安装、启动应用或关闭 Gatekeeper。
+
+## 测试范围
+
+原有五组 XCTest 复用已有回归验证：认证文件读写与安全检查、账号切换及回滚、额度解析和刷新、客户端退出流程、原生进程适配器。使用模拟认证、网络响应和虚拟时钟，不请求真实额度。原生进程验证会枚举进程元数据，仅向测试自己创建的 `codex-shutdown-fixture` 发送结束信号。
+
+新增四项 XCTest 验证更新配置和账号操作／安装互斥。`python3 tests/updateFeedTests.py` 使用临时 Ed25519 密钥验证签名篡改、发布状态、元数据、同版本不可变和禁止降级等边界；不访问钥匙串。
+
+**真实多账号额度、系统钥匙串授权、客户端退出和切换后的身份确认仍需人工验证。** 自动化测试不会启动菜单栏主应用；成功启动客户端不等于服务端接受登录。
 
 ## GitHub Actions 与发布
 
-仓库根目录的 `.github/workflows/ci.yml` 在 PR、推送 `main` 和手动运行时执行脚本／plist 检查、现有模拟测试、完整构建、签名验证和发布包生成。运行环境固定为 `macos-26`（Apple Silicon），应用部署目标从 `info.plist` 读取；当前为 macOS 26.0。不会安装或启动官方 ChatGPT，也不会读取真实认证或钥匙串。真实登录和界面交互仍需人工验收。
+`.github/workflows/ci.yml` 在 PR、推送 `main` 和手动运行时执行脚本／plist 检查、`xcodebuild test`、`xcodebuild archive` 和 DMG 打包。环境固定为 `macos-26`（arm64）。测试结果 `.xcresult` 尽可能在失败时也上传，保留 14 天。
 
-通过后可在 Actions 页面下载 `prism-macos-arm64-<commit>` artifact，保留 14 天。GitHub 下载的 artifact 外层仍是 ZIP；解压后打开其中的 DMG，将应用拖入 Applications，然后推出磁盘映像，从“应用程序”启动。CI 使用只读仓库权限，官方 Actions 固定到完整提交号；不使用 `pull_request_target`，不缓存带绝对路径的 Swift 模块缓存。
+CI 使用只读仓库权限，官方 Actions 固定到提交号，checkout 不持久保存凭据，不使用 `pull_request_target`，不跨运行缓存 Swift 模块。云端不需要安装 ChatGPT 或配置真实账号。GitHub Actions artifact 外层是 ZIP，解压得到 DMG 后打开，将应用拖到 Applications 即可。
 
 发布步骤：
 
-1. 在 `info.plist` 更新 `CFBundleShortVersionString`（三段数字，例如 `0.2.3`）及递增的 `CFBundleVersion`。本地构建和 CI 使用同一份元数据，不在工作流里生成或覆盖版本号。
-2. 合并代码到 `main`，确认该提交的 CI 通过。建议在 GitHub 分支规则中将 `Verify macOS arm64` 设置为合并必需检查，并限制 `v*` 标签的创建权限。
-3. 在待发布的提交上创建并推送对应标签。当前版本示例（仅在准备发布时执行）：
+1. 更新 `config/app.xcconfig` 中三段数字版本 `MARKETING_VERSION`（如 `0.3.1`）及递增的 `CURRENT_PROJECT_VERSION`。不要在 `info.plist` 或工作流中重复写版本。
+2. 将代码合并到 `main` 并确认 CI 通过。建议把 `Verify macOS arm64` 设置为必需检查，限制 `v*` 标签创建权限。
+3. 在待发布提交上创建并推送匹配版本的标签；当前版本示例，仅在准备发布时执行：
 
    ```sh
-   git tag -a v0.2.2 -m 'Release v0.2.2'
-   git push origin v0.2.2
+   git tag -a v0.3.0 -m 'Release v0.3.0'
+   git push origin v0.3.0
    ```
 
-4. `release.yml` 会拒绝标签与 plist 不一致的版本，并重新测试、构建及打包。成功后生成 `prism-v0.2.2-macos-arm64.dmg`、`SHA256SUMS.txt`，上传到 **Release 草稿**；不会自动正式发布。
-5. 人工验证下载包、账号切换及兼容的官方客户端版本，补充发行说明后在 GitHub 发布草稿。相同标签已有 Release 时任务失败，不覆盖已有附件；若要重试未完成的草稿，请先检查并手动处理旧草稿，已正式发布的版本应使用新版本标签。
+4. `release.yml` 首先通过 Xcode 解析配置并校验标签，再运行 XCTest、归档、生成 DMG 和 SHA-256 校验文件，使用受保护的更新密钥签署 DMG 并生成 `appcast.xml`，验证签名与应用内公钥一致后创建 **Release 草稿**。
+5. 打标签前编辑根目录 `releaseNotes.md`；该文件会同时嵌入更新订阅和草稿说明。人工验收安装包和账号切换后发布草稿。仅在 GitHub 编辑 Release 正文不会改变已签包对应的更新说明。已有相同标签的 Release 不会被覆盖；失败重试前先检查旧草稿，正式发布后应使用新版本。
 
-Release 任务仅响应标签推送，拥有创建 Release 所需的 `contents: write`；`GITHUB_TOKEN` 只在创建草稿步骤作为 GitHub CLI 凭据传入，checkout 不持久保存 Git 凭据。不需要配置个人 PAT 或 Apple Secrets。配置推送到 GitHub 后才会真正运行；本地构建通过不等于云端 Actions 已验证。
+可单独运行 `bash scripts/packageRelease.sh v0.3.0 --check-only`，无需先构建归档。为避免旧附件混入，本地再次打包前需移走已有的 `build/release/`；CI 使用新运行环境。Xcode 普通构建不生成 DMG，分发阶段只生成一次 DMG。
 
-本地检查标签或生成同样的发行包：
+Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `GITHUB_TOKEN` 创建草稿；无需 PAT 或 Apple Secrets，但签名步骤必须配置 `release-signing` Environment 中的 `SPARKLE_PRIVATE_KEY` Secret。PR 和普通 CI 不使用更新私钥。配置推送后才会在 GitHub 上运行，本地通过不能代替云端验证。
 
-```sh
-bash scripts/packageRelease.sh v0.2.2 --check-only
-bash scripts/test.sh
-bash scripts/build.sh
-bash scripts/packageRelease.sh v0.2.2
-```
-
-发布包位于 `build/release/`。为避免旧版本附件混入，本地重复打包前需把已有 `build/release/` 移走；CI 每次使用新的运行环境。本地输出改为 `build/xelumeSwitch.dmg`，不再生成应用 ZIP。原有 ZIP 不会自动删除，但不再被 CI 或 Release 上传。发行包当前只支持 arm64，没有添加 Intel 或通用二进制支持。
-
-**当前包是临时签名且未经公证的测试分发包，macOS 可能阻止打开。** 工作流不会关闭 Gatekeeper 或伪装成已公证版本。正式分发需要后续接入 Developer ID Application 证书、Hardened Runtime、Apple `notarytool` 公证及票据 stapling，再重新打包验证；证书私钥和公证凭据只能存放在受保护的 GitHub Environment／Secrets 中，不能提交到仓库或提供给外部 PR。本阶段没有启用 Apple 签名、公证、自动更新或自动正式发布。
+**产物仍为临时签名、未经 Apple 公证的测试分发包。** 正式分发需要后续配置 Developer ID Application 证书、Hardened Runtime、公证和 stapling。证书私钥和公证凭据只能放在受保护的 GitHub Environment／Secrets，不能提交到仓库或交给外部 PR。当前未启用 Apple 正式签名、公证或 Intel 发行包。
 
 参考：[GitHub macOS runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)、[Apple 公证流程](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)。
+
+## 应用更新
+
+“关于 Prism…”显示图标、版本、xelume 团队、项目链接及安全说明；关于窗口和菜单的“检查更新…”共用一个 Sparkle 更新器。用户同意自动检查后约每天检查一次，也可在关于窗口随时关闭。后台发现更新只修改菜单入口，不抢焦点；用户主动点击后才展示更新说明、下载和安装进度。没有更新或请求失败由 Sparkle 标准窗口提示；网络失败不会误报为最新版本。
+
+不自动下载、不静默安装、不发送账号、令牌或系统分析信息。更新仅替换本工具并重启，不结束官方客户端、不修改认证、钥匙串或任务文件。安装与账号操作互斥，下载期间可以正常使用；一旦请求安装就不再接受新账号操作，已有操作结束后才恢复安装。退出请求也不能打断账号操作。
+
+当前订阅地址为 `https://xelume.github.io/prism/appcast.xml`，DMG 来自公开的 `xelume/prism` GitHub Releases。如果仓库私有，不要把 GitHub Token 打包到应用；应先提供公开的分发仓库或 HTTPS 下载服务。发布前验证这个固定地址可公开访问。默认发布单个最新稳定版本，最低 macOS 和 arm64 限制由 Sparkle 读取；未来提高系统要求时，应扩展为保留旧系统分支的订阅，不能直接删除旧系统最后可用版本。
+
+首次启用（一次性）：
+
+1. 解析依赖后，在可信本机执行以下命令，生成专用于本项目的 Sparkle 密钥。已有同名密钥会复用，不会覆盖：
+
+   ```sh
+   build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys --account xelume-prism
+   ```
+
+2. 将输出的**公钥**写入 `config/app.xcconfig` 的 `SPARKLE_PUBLIC_ED_KEY` 并提交；私钥保留在本机钥匙串并安全备份。它不是 Apple 开发者证书，也不能消除 Gatekeeper 提示。不要每次构建生成新密钥。空公钥时本地应用仍可使用，但会明确显示尚未配置更新，正式签名打包会失败。
+3. 在 GitHub 建立 `release-signing` Environment，限制 `v*` 标签并配置审核人。通过 Sparkle 的 `generate_keys --account xelume-prism -x <仓库外的安全临时文件>` 导出私钥，把文件内容配置为该 Environment 的 `SPARKLE_PRIVATE_KEY` Secret，随后安全移除临时导出文件。不要把私钥放进仓库、命令参数、聊天或日志。
+4. 在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**，为 `github-pages` Environment 配置可信发布权限。此工作流部署整个 Pages 站点；如果仓库已有站点，需要先合并部署内容，避免覆盖。这里尚未自动修改 GitHub 设置。
+5. 创建并验收首个包含公钥的版本。已有旧版用户需要手动安装一次，之后才能使用应用内更新。
+
+本地正式更新包使用和普通 DMG 相同的归档，额外指定签名模式：
+
+```sh
+bash scripts/packageRelease.sh v0.3.0 --signed
+```
+
+本地签名只读取 `xelume-prism` 对应的更新密钥；CI 只在签名步骤通过标准输入传递 Secret。Sparkle 官方 `generate_appcast` 生成元数据与 EdDSA 签名，`updateFeed.swift` 再以应用内公钥独立验证 DMG、版本、最低系统和固定下载地址。发布说明来自根目录 `releaseNotes.md`，第一版不生成增量包。
+
+`release.yml` 只创建草稿并上传 DMG、校验文件、`appcast.xml`。人工发布稳定版后，`updateFeed.yml` 读取当前最新公开稳定 Release，下载并验证附件，拒绝草稿／预发布、错误签名和更低构建号，只把订阅文件部署到 Pages。公开订阅始终最后更新。支持手动重跑部署；相同构建号仅允许原样重发，变更说明或更新包有修改时发布新版本和更高构建号。
+
+维护者发布每个新版本前应在隔离测试安装中验证：旧版检测新版、取消／稍后更新、下载失败、签名不匹配、最低系统不兼容、只读 DMG 提示移至 Applications、账号操作期间点击安装、更新后重启。自动化测试不替代实际安装验收，不应为此操作真实账号。应用从 DMG 直接运行时不能原地替换，请先拖到 Applications。
+
+参考：[Sparkle 接入与签名](https://sparkle-project.org/documentation/)、[发布更新](https://sparkle-project.org/documentation/publishing/)、[GitHub Pages 自定义工作流](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
 
 ## 本地清理
 

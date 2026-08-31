@@ -203,9 +203,7 @@ func runShutdownTests() async throws {
     print("PASS: slow exit, owned residual cleanup, independent CLI protection, force/cancel, retry, PID reuse, new children, zombies, and inspection failures")
 }
 
-func runNativeProcessTests() throws {
-    let helper = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
-        .appendingPathComponent("codex-shutdown-fixture")
+func runNativeProcessTests(helper: URL) throws {
     let child = Process()
     child.executableURL = helper
     let ready = Pipe()

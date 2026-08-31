@@ -16,6 +16,7 @@ jobs:
     name: Test, package and draft release
     runs-on: macos-26
     timeout-minutes: 25
+    environment: release-signing
     permissions:
       contents: write
     env:
@@ -24,18 +25,45 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - name: Resolve locked Swift packages
+        run: >-
+          xcodebuild -resolvePackageDependencies -project Prism.xcodeproj -scheme Prism
+          -clonedSourcePackagesDirPath build/SourcePackages
+          -onlyUsePackageVersionsFromResolvedFile
       - name: Validate version before building
         run: |
           for script in scripts/*.sh; do bash -n "$script"; done
           plutil -lint info.plist
           test "$(uname -m)" = arm64
           bash scripts/packageRelease.sh "$RELEASE_TAG" --check-only
-      - name: Test without real accounts
-        run: bash scripts/test.sh
-      - name: Build and verify ad-hoc signature
-        run: bash scripts/build.sh
-      - name: Package release assets
-        run: bash scripts/packageRelease.sh "$RELEASE_TAG"
+      - name: Test update publication boundaries
+        run: python3 tests/updateFeedTests.py
+      - name: Run hostless XCTest suite
+        run: >-
+          xcodebuild -project Prism.xcodeproj -scheme Prism
+          -configuration Debug -destination 'platform=macOS,arch=arm64'
+          -derivedDataPath build/DerivedData
+          -clonedSourcePackagesDirPath build/SourcePackages -disableAutomaticPackageResolution
+          -resultBundlePath build/TestResults.xcresult test
+      - name: Archive application with Xcode
+        run: >-
+          xcodebuild -project Prism.xcodeproj -scheme Prism
+          -configuration Release -destination 'generic/platform=macOS'
+          -derivedDataPath build/DerivedData
+          -clonedSourcePackagesDirPath build/SourcePackages -disableAutomaticPackageResolution
+          -archivePath build/Prism.xcarchive ARCHS=arm64 archive
+      - name: Preserve XCTest results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/TestResults.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Package and sign update assets
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: bash scripts/packageRelease.sh "$RELEASE_TAG" --signed
       - name: Preserve release artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -44,6 +72,7 @@ jobs:
             build/release/*.dmg
             build/release/SHA256SUMS.txt
             build/release/releaseNotes.md
+            build/release/appcast.xml
           if-no-files-found: error
           retention-days: 14
       - name: Create draft (never overwrite an existing release)
@@ -53,6 +82,6 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" \
             --verify-tag --draft \
-            --title "Xelume Switch $RELEASE_TAG (macOS arm64, not notarized)" \
+            --title "Prism $RELEASE_TAG (macOS arm64, not notarized)" \
             --notes-file build/release/releaseNotes.md \
-            build/release/*.dmg build/release/SHA256SUMS.txt
+            build/release/*.dmg build/release/SHA256SUMS.txt build/release/appcast.xml

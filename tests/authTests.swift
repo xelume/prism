@@ -123,7 +123,7 @@ func runTests() throws {
     try rejects("home symlink") { _ = try AuthFile(home: alias) }
     try check(ProcessEntry(pid: 1, executable: "/tmp/extension/codex").isCodex, "IDE codex recognized")
     try check(ProcessEntry(pid: 1, executable: "/tmp/codex-code-mode-host").isCodex, "background helper recognized")
-    try check(!ProcessEntry(pid: 1, executable: "/tmp/XelumeSwitch").isCodex, "switcher excluded")
+    try check(!ProcessEntry(pid: 1, executable: "/tmp/Prism").isCodex, "switcher excluded")
     print("PASS: identity, refreshed backups, switch, rollback, concurrent modification, vault failure, add/cancel, permissions, configuration, symlinks, process classification")
 }
 
