@@ -44,7 +44,7 @@ enum UsageFailure: Error, Equatable {
 
     var message: String {
         switch self {
-        case .expired: return "登录已失效，请重新登录并保存"
+        case .expired: return "登录已失效，请点击账号重新登录"
         case .forbidden: return "无权查询额度或请求被服务拒绝"
         case .throttled: return "请求受限，稍后自动重试"
         case .unavailable: return "暂时无法获取额度"

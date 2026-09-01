@@ -14,6 +14,7 @@ struct AuthSnapshot {
     let identity: String
     let accountID: String
     let accessToken: String
+    let email: String?
 
     init(_ data: Data) throws {
         guard data.count < 1_048_576,
@@ -31,8 +32,22 @@ struct AuthSnapshot {
         self.data = data
         self.accountID = account
         self.accessToken = access
+        self.email = Self.email(from: claims)
         self.identity = SHA256.hash(data: Data((account + "\u{0}" + subject).utf8))
             .map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func email(from claims: [String: Any]) -> String? {
+        guard let raw = claims["email"] as? String else { return nil }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value.count <= 80,
+              value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+              value.rangeOfCharacter(from: .controlCharacters) == nil,
+              let separator = value.firstIndex(of: "@"),
+              separator == value.lastIndex(of: "@"),
+              separator != value.startIndex,
+              value.index(after: separator) != value.endIndex else { return nil }
+        return value
     }
 
     private static func claims(_ token: String) -> [String: Any]? {
@@ -60,9 +75,10 @@ struct AccountBook: Codable {
         if let index = accounts.firstIndex(where: { $0.identity == snapshot.identity }) {
             accounts[index].auth = snapshot.data
             if let label { accounts[index].label = label }
+            else if let email = snapshot.email { accounts[index].label = email }
         } else {
             accounts.append(SavedAccount(identity: snapshot.identity,
-                label: label ?? "账号 \(accounts.count + 1)", auth: snapshot.data))
+                label: label ?? snapshot.email ?? "账号 \(accounts.count + 1)", auth: snapshot.data))
         }
     }
 

@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		09AE2CDF039117CAB20198B5 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8AE94C94DD89B016C1DAD4 /* main.swift */; };
+		0A11C0DE0000000000000001 /* accountLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A11C0DE0000000000000003 /* accountLogin.swift */; };
+		0A11C0DE0000000000000002 /* accountLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A11C0DE0000000000000003 /* accountLogin.swift */; };
 		114204DD21DC82015AEE6134 /* updatePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9CAC8AD48690F4A998059E /* updatePolicy.swift */; };
 		1C76487083BF2BB550C90AB1 /* aboutWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A77D6BAD8F1B72AB455A18A /* aboutWindow.swift */; };
 		251FB4DB5AED851570D83A71 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 705BB44805921CCAF962869D /* Sparkle */; };
@@ -62,6 +64,7 @@
 
 /* Begin PBXFileReference section */
 		04A8572B6184C2B4B0D58127 /* codex-shutdown-fixture */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "codex-shutdown-fixture"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0A11C0DE0000000000000003 /* accountLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = accountLogin.swift; sourceTree = "<group>"; };
 		11F10141AD29CEFCF91017FB /* regressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = regressionTests.swift; sourceTree = "<group>"; };
 		12E827CA5C62E89BE372D55B /* authTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = authTests.swift; sourceTree = "<group>"; };
 		21615A4C4ED26399B0E912FB /* clientShutdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = clientShutdown.swift; sourceTree = "<group>"; };
@@ -148,6 +151,7 @@
 		596B73E0DA7F040AAF99B86E /* sources */ = {
 			isa = PBXGroup;
 			children = (
+				0A11C0DE0000000000000003 /* accountLogin.swift */,
 				4D651D5DCE72EE4517B77C83 /* accountUsage.swift */,
 				7787286C8013A1BF21F48D0A /* authStore.swift */,
 				21615A4C4ED26399B0E912FB /* clientShutdown.swift */,
@@ -338,6 +342,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0A11C0DE0000000000000002 /* accountLogin.swift in Sources */,
 				4DC84B5145CAF3F1E485CDFE /* accountUsage.swift in Sources */,
 				F6D9E0730822984AA0B92EB2 /* authStore.swift in Sources */,
 				BD9931DFA76FFF429E6BD678 /* clientShutdown.swift in Sources */,
@@ -357,6 +362,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0A11C0DE0000000000000001 /* accountLogin.swift in Sources */,
 				26FBA7F24836E6B06A378551 /* accountUsage.swift in Sources */,
 				513740E0625A6B74887A084F /* authStore.swift in Sources */,
 				5B9F025BEF2A6D7019B79D31 /* clientShutdown.swift in Sources */,

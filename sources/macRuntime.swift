@@ -44,7 +44,7 @@ final class KeychainVault {
             status = SecItemAdd(item as CFDictionary, nil)
         }
         guard status == errSecSuccess else {
-            throw SwitchError("钥匙串保存失败，已停止切换。当前认证不会被替换。")
+            throw SwitchError("钥匙串保存失败，未修改当前登录或已有账号备份。")
         }
     }
 
@@ -83,7 +83,8 @@ final class MacRuntime {
         lockDescriptor = fd
     }
 
-    func preflight() throws -> AuthFile {
+    func desktopApp() throws -> URL? {
+        guard FileManager.default.fileExists(atPath: appURL.path) else { return nil }
         guard let bundle = Bundle(url: appURL), bundle.bundleIdentifier == "com.openai.codex",
               bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == "26.825.51511" else {
             throw SwitchError("当前客户端不是已检查的 26.825.51511 版本。请先复核兼容性，工具不会直接替换认证。")
@@ -96,16 +97,55 @@ final class MacRuntime {
               let code, SecStaticCodeCheckValidity(code, [], requirement) == errSecSuccess else {
             throw SwitchError("官方客户端签名校验失败。")
         }
+        return appURL
+    }
+
+    func authFile(createDirectory: Bool = false) throws -> AuthFile {
         let env = ProcessInfo.processInfo.environment
-        for key in ["CODEX_HOME", "CODEX_CLI_PATH", "CODEX_ELECTRON_USER_DATA_PATH",
-                    "CODEX_ACCESS_TOKEN", "CODEX_AUTH_JSON", "OPENAI_API_KEY"] {
+        for key in ["CODEX_HOME", "CODEX_ELECTRON_USER_DATA_PATH", "CODEX_ACCESS_TOKEN",
+                    "CODEX_AUTH_JSON", "OPENAI_API_KEY"] {
             if let value = env[key], !value.isEmpty {
-                throw SwitchError("工具检测到自定义认证或启动环境。第一版仅支持默认登录环境。")
+                throw SwitchError("工具检测到自定义认证或启动环境。Prism 仅管理默认登录环境。")
             }
+        }
+        if createDirectory, !FileManager.default.fileExists(atPath: home.path) {
+            try FileManager.default.createDirectory(at: home, withIntermediateDirectories: false,
+                attributes: [.posixPermissions: 0o700])
         }
         let file = try AuthFile(home: home)
         try file.checkConfiguration()
         return file
+    }
+
+    func currentAuth() throws -> Data? {
+        guard FileManager.default.fileExists(atPath: home.path) else { return nil }
+        return try authFile().read()
+    }
+
+    func codexExecutable() throws -> URL {
+        var paths: [String] = []
+        if let app = try desktopApp() {
+            paths.append(app.appendingPathComponent("Contents/Resources/codex").path)
+        }
+        let environment = ProcessInfo.processInfo.environment
+        paths += (environment["PATH"] ?? "").split(separator: ":").map { String($0) + "/codex" }
+        let userHome = FileManager.default.homeDirectoryForCurrentUser
+        paths += ["/opt/homebrew/bin/codex", "/usr/local/bin/codex",
+                  userHome.appendingPathComponent(".local/bin/codex").path,
+                  userHome.appendingPathComponent(".volta/bin/codex").path,
+                  userHome.appendingPathComponent(".asdf/shims/codex").path,
+                  userHome.appendingPathComponent(".local/share/mise/shims/codex").path]
+        let nodeVersions = userHome.appendingPathComponent(".nvm/versions/node")
+        if let versions = try? FileManager.default.contentsOfDirectory(at: nodeVersions,
+                includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) {
+            let newestFirst = versions.sorted {
+                let left = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let right = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                return left > right
+            }
+            paths += newestFirst.map { $0.appendingPathComponent("bin/codex").path }
+        }
+        return try CodexExecutable.resolve(configuredPath: environment["CODEX_CLI_PATH"], searchPaths: paths)
     }
 
     func requireStopped() throws {

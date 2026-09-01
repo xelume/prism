@@ -10,8 +10,11 @@ private func rejects(_ label: String, _ operation: () throws -> Void) throws {
     throw SwitchError("Expected rejection: " + label)
 }
 
-private func fakeAuth(account: String, subject: String = "test-person", revision: String = "initial") throws -> Data {
-    let claims = try JSONSerialization.data(withJSONObject: ["sub": subject])
+private func fakeAuth(account: String, subject: String = "test-person", revision: String = "initial",
+                      email: String? = nil) throws -> Data {
+    var payloadClaims = ["sub": subject]
+    if let email { payloadClaims["email"] = email }
+    let claims = try JSONSerialization.data(withJSONObject: payloadClaims)
     let payload = claims.base64EncodedString().replacingOccurrences(of: "=", with: "")
         .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
     return try JSONSerialization.data(withJSONObject: [
@@ -30,6 +33,18 @@ func runTests() throws {
     try manager.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     defer { try? manager.removeItem(at: root) }
     let file = try AuthFile(home: root)
+    let fakeCLI = root.appendingPathComponent("codex")
+    try Data("#!/bin/sh\nexit 0\n".utf8).write(to: fakeCLI)
+    try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fakeCLI.path)
+    try check(try CodexExecutable.resolve(configuredPath: fakeCLI.path, searchPaths: []).path == fakeCLI.path,
+              "configured standalone CLI is accepted")
+    try manager.setAttributes([.posixPermissions: 0o722], ofItemAtPath: fakeCLI.path)
+    try rejects("writable standalone CLI") {
+        _ = try CodexExecutable.resolve(configuredPath: fakeCLI.path, searchPaths: [])
+    }
+    try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fakeCLI.path)
+    try check(try CodexExecutable.resolve(configuredPath: nil, searchPaths: ["/missing/codex", fakeCLI.path]).path == fakeCLI.path,
+              "standalone CLI search skips unusable candidates")
     let a = try fakeAuth(account: "simulated-a")
     let refreshed = try fakeAuth(account: "simulated-a", revision: "refreshed")
     let b = try fakeAuth(account: "simulated-b")
@@ -42,6 +57,36 @@ func runTests() throws {
     try rejects("API key login") {
         _ = try AuthSnapshot(JSONSerialization.data(withJSONObject: ["auth_mode": "apikey", "OPENAI_API_KEY": "SIMULATED"]))
     }
+
+    let emailAuth = try AuthSnapshot(fakeAuth(account: "simulated-email", email: "person@example.com"))
+    try check(emailAuth.email == "person@example.com", "email is read from the ID token")
+    let invalidEmail = try AuthSnapshot(fakeAuth(account: "simulated-invalid-email", email: "not-an-email"))
+    try check(invalidEmail.email == nil, "invalid email is ignored")
+    let malformedEmail = try AuthSnapshot(fakeAuth(account: "simulated-malformed-email", email: "one@two@example.com"))
+    try check(malformedEmail.email == nil, "email with multiple separators is ignored")
+    let longEmail = String(repeating: "a", count: 69) + "@example.com"
+    try check(try AuthSnapshot(fakeAuth(account: "simulated-long-email", email: longEmail)).email == nil,
+              "email longer than the label limit is ignored")
+
+    var namedBook = AccountBook()
+    namedBook.remember(emailAuth)
+    try check(namedBook.accounts.first?.label == "person@example.com", "new account uses email label")
+    let refreshedEmailAuth = try AuthSnapshot(fakeAuth(account: "simulated-email", revision: "refreshed",
+                                                        email: "updated@example.com"))
+    namedBook.remember(refreshedEmailAuth)
+    try check(namedBook.accounts.first?.label == "updated@example.com", "refresh updates email label")
+    namedBook.remember(invalidEmail)
+    try check(namedBook.accounts.last?.label == "账号 2", "missing email uses numbered label")
+
+    var loginBook = AccountBook()
+    let loggedIn = try AccountLogin.remember(emailAuth.data, expectedIdentity: nil, in: &loginBook)
+    try check(loggedIn.label == "person@example.com", "isolated login is saved with its email")
+    let beforeMismatch = loginBook
+    try rejects("different account during reauthentication") {
+        _ = try AccountLogin.remember(invalidEmail.data, expectedIdentity: emailAuth.identity, in: &loginBook)
+    }
+    try check(loginBook.accounts.map(\.identity) == beforeMismatch.accounts.map(\.identity),
+              "reauthentication mismatch leaves the account book unchanged")
 
     var book = AccountBook()
     book.remember(try AuthSnapshot(a), label: "A")

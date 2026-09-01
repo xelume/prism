@@ -1,6 +1,6 @@
 // Shared app metadata. Keep releases and local Xcode builds on the same version.
-MARKETING_VERSION = 0.3.7
-CURRENT_PROJECT_VERSION = 13
+MARKETING_VERSION = 0.4.0
+CURRENT_PROJECT_VERSION = 14
 MACOSX_DEPLOYMENT_TARGET = 26.0
 SWIFT_VERSION = 5.0
 SDKROOT = macosx

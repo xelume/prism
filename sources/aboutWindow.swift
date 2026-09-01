@@ -100,7 +100,7 @@ final class AboutWindow: NSWindowController {
     @objc private func showSafety() {
         let alert = NSAlert()
         alert.messageText = "安全与兼容说明"
-        alert.informativeText = "仅更换默认 ~/.codex/auth.json，保留设置、插件和任务文件。账号备份存入本机钥匙串，不同步到 iCloud。\n\n仅支持已检查版本 26.825.51511 的文件认证。会清理已确认属于客户端的残留进程；强制结束前需确认，独立终端／IDE 进程不会自动结束。不会读取密码、修改官方应用或自动登录。后台定期使用各账号已有认证向官方服务查询额度，不自动续期或改写登录。切换期间请勿另行启动 Codex。\n\n本地任务文件不按账号隔离，切换账号不会隔离数据；云端会话、订阅、权限和插件授权由当前账号决定。本工具未经 OpenAI 官方支持。"
+        alert.informativeText = "仅更换默认 ~/.codex/auth.json，保留设置、插件和任务文件。账号备份存入本机钥匙串，不同步到 iCloud。\n\n支持已检查版本 26.825.51511 的桌面客户端或权限安全的独立 Codex CLI。添加和重新登录账号时，由官方 Codex 在隔离临时目录中完成浏览器登录，不中断当前任务；Prism 不读取密码、不自行刷新令牌。切换时会清理已确认属于桌面客户端的残留进程；强制结束前需确认，独立终端／IDE 进程不会自动结束。\n\n本地任务文件不按账号隔离，切换账号不会隔离数据；云端会话、订阅、权限和插件授权由当前账号决定。本工具未经 OpenAI 官方支持。"
         alert.addButton(withTitle: "知道了")
         if let window { alert.beginSheetModal(for: window) }
     }

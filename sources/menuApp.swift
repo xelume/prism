@@ -19,8 +19,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let self else { throw CancellationError() }
         let book = try await Task.detached { try KeychainVault().load(allowInteraction: false) }.value
         try Task.checkCancellation()
-        let file = try self.runtime.preflight()
-        return try UsageAccounts(book: book, current: file.read())
+        return try UsageAccounts(book: book, current: self.runtime.currentAuth())
     }, fetch: { auth in try await UsageClient().fetch(auth) })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -85,7 +84,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         accountSeparator = .separator()
         menu.addItem(accountSeparator!)
         addItem("添加账号…", action: #selector(addAccount), to: menu)
-        addItem("保存／更新当前账号…", action: #selector(saveCurrent), to: menu)
+        addItem("保存当前账号", action: #selector(saveCurrent), to: menu)
         menu.addItem(.separator())
         addItem("关于 Prism…", action: #selector(about), to: menu)
         updateItem = addItem(updates.menuTitle, action: #selector(checkForUpdates), to: menu)
@@ -94,7 +93,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         quit.keyEquivalent = "q"
         quit.keyEquivalentModifierMask = .command
         status.menu = menu
-        status.button?.title = busy ? "切换中…" : (status.button?.image == nil ? "账号" : "")
+        status.button?.title = busy ? "处理中…" : (status.button?.image == nil ? "账号" : "")
         status.button?.toolTip = nil
         updateUsageItems()
     }
@@ -161,10 +160,11 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             var badges: [String] = current ? ["当前"] : []
             if let failure = state?.failure { badges.append(failureTitle(failure)) }
             let suffix = badges.isEmpty ? "" : "   " + badges.joined(separator: " · ")
-            rows[0].title = compactAccountName(account.label) + suffix
+            rows[0].title = account.label + suffix
             rows[0].state = current ? .on : .off
-            rows[0].isEnabled = !busy && !updates.installationGate.installationRequested
-                && !current && usage.savedIdentities.contains(account.identity)
+            let expired = state?.failure == .expired
+            rows[0].action = expired && !current ? #selector(reauthenticateAccount(_:)) : #selector(switchAccount(_:))
+            rows[0].isEnabled = actionsAllowed && !current && usage.savedIdentities.contains(account.identity)
             rows[0].attributedTitle = nil
             if current {
                 rows[0].attributedTitle = NSAttributedString(string: rows[0].title,
@@ -194,18 +194,6 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .unavailable: return "查询失败"
         case .unsupported: return "暂不支持"
         }
-    }
-
-    private func compactAccountName(_ name: String) -> String {
-        // Bound long and multiline names without changing their stored labels.
-        let singleLine = name.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
-        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
-        if (singleLine as NSString).size(withAttributes: attributes).width <= 150 { return singleLine }
-        var shortened = singleLine
-        while !shortened.isEmpty && ((shortened + "…") as NSString).size(withAttributes: attributes).width > 150 {
-            shortened.removeLast()
-        }
-        return shortened + "…"
     }
 
     private func windowTitle(_ label: String, _ window: UsageWindow?, failed: Bool,
@@ -257,26 +245,13 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func saveCurrent() {
-        let field = NSTextField(string: "")
-        field.placeholderString = "例如：个人账号、工作账号"
-        field.frame = NSRect(x: 0, y: 0, width: 320, height: 24)
-        let alert = makeAlert("保存当前账号", "将正常退出 ChatGPT，确认 Codex 已停止后保存最新认证，再重开客户端。备份只存入本机钥匙串。")
-        alert.accessoryView = field
-        alert.addButton(withTitle: "保存并重开")
-        alert.addButton(withTitle: "取消")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let label = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !label.isEmpty, label.count <= 80 else { show(SwitchError("请输入 1–80 个字符的账号名称。")); return }
         perform { [self] in
-            let file = try runtime.preflight()
+            let file = try runtime.authFile()
             var book = try vault.load()
-            try await runtime.quitClient(confirmForce: confirmForceQuit)
-            try runtime.requireStopped()
             guard let current = try file.read() else { throw SwitchError("当前没有文件登录状态。请先在官方客户端登录。") }
-            book.remember(try AuthSnapshot(current), label: label)
+            book.remember(try AuthSnapshot(current))
             try vault.save(book)
-            try await runtime.launch()
-            notify("已保存", "此账号的最新认证已保存在钥匙串中。")
+            notify("账号已保存", "认证备份已更新到本机钥匙串。")
         }
     }
 
@@ -284,33 +259,61 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !busy, let target = sender.representedObject as? String,
               let account = usage.accounts.first(where: { $0.identity == target }),
               usage.savedIdentities.contains(target) else { return }
-        let alert = makeAlert("是否切换到「\(account.label)」？",
-            "将退出 ChatGPT，并自动备份当前账号的最新认证，再重开客户端。请先结束终端／IDE 中的 Codex 任务；这些客户端也会共用切换后的账号。设置与任务文件不变。")
+        let hasDesktopApp: Bool
+        do { hasDesktopApp = try runtime.desktopApp() != nil }
+        catch { show(error); return }
+        let details = hasDesktopApp
+            ? "将退出 ChatGPT，并自动备份当前账号的最新认证，再重开客户端。请先结束终端／IDE 中的 Codex 任务；这些客户端也会共用切换后的账号。设置与任务文件不变。"
+            : "将自动备份当前账号的最新认证，再替换默认认证。请先结束终端／IDE 中的 Codex 任务；Prism 不会强制结束它们，也不会启动新进程。设置与任务文件不变。"
+        let alert = makeAlert("是否切换到「\(account.label)」？", details)
         alert.addButton(withTitle: "取消")
-        alert.addButton(withTitle: "切换并重开")
+        alert.addButton(withTitle: hasDesktopApp ? "切换并重开" : "切换账号")
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         perform { [self] in try await change(to: target) }
     }
 
     @objc private func addAccount() {
-        let alert = makeAlert("添加另一个账号", "工具会退出 ChatGPT，将当前最新认证安全保存到钥匙串，然后清除本机当前认证文件并重开官方登录页。它不会调用退出登录接口。请在浏览器选择另一个账号，登录完成后使用“保存／更新当前账号”为它命名。\n\n不会清除配置、插件或任务文件。若登录取消，可以从工具中切回已保存账号。")
-        alert.addButton(withTitle: "备份并打开登录页")
+        let alert = makeAlert("添加另一个账号", "将在浏览器中通过官方 Codex 登录另一个 ChatGPT 账号。当前 ChatGPT、Codex 和 IDE 任务不会退出，当前登录不会改变。登录结果只在隔离目录中暂存，校验后保存到本机钥匙串。")
+        alert.addButton(withTitle: "打开登录页")
         alert.addButton(withTitle: "取消")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        perform { [self] in try await change(to: nil) }
+        perform { [self] in try await loginAccount(expectedIdentity: nil) }
     }
 
-    private func change(to target: String?) async throws {
-        let file = try runtime.preflight()
-        if let target, let current = try file.read(), try AuthSnapshot(current).identity == target {
+    @objc private func reauthenticateAccount(_ sender: NSMenuItem) {
+        guard !busy, let target = sender.representedObject as? String,
+              let account = usage.accounts.first(where: { $0.identity == target }),
+              usage.states[target]?.failure == .expired else { return }
+        let alert = makeAlert("重新登录「\(account.label)」？", "将在浏览器中通过官方 Codex 重新认证此账号。当前 ChatGPT、Codex 和 IDE 任务不会退出，当前登录不会改变。必须登录同一个账号，否则不会更新备份。")
+        alert.addButton(withTitle: "打开登录页")
+        alert.addButton(withTitle: "取消")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        perform { [self] in try await loginAccount(expectedIdentity: target) }
+    }
+
+    private func loginAccount(expectedIdentity: String?) async throws {
+        var book = try vault.load()
+        let executable = try runtime.codexExecutable()
+        let data = try await AccountLogin.run(executable: executable)
+        let account = try AccountLogin.remember(data, expectedIdentity: expectedIdentity, in: &book)
+        try vault.save(book)
+        notify(expectedIdentity == nil ? "账号已添加" : "账号已重新登录",
+               "「\(account.label)」已保存到本机钥匙串。当前登录未改变。")
+    }
+
+    private func change(to target: String) async throws {
+        let file = try runtime.authFile(createDirectory: true)
+        if let current = try file.read(), try AuthSnapshot(current).identity == target {
             notify("已是当前账号", "无需重复退出和重开客户端。")
             return
         }
         var book = try vault.load()
-        if let target, !book.accounts.contains(where: { $0.identity == target }) {
+        if !book.accounts.contains(where: { $0.identity == target }) {
             throw SwitchError("目标备份不存在，未退出客户端。")
         }
-        try await runtime.quitClient(confirmForce: confirmForceQuit)
+        let hasDesktopApp = try runtime.desktopApp() != nil
+        if hasDesktopApp { try await runtime.quitClient(confirmForce: confirmForceQuit) }
+        else { try runtime.requireStopped() }
         try runtime.requireStopped()
         let change = try prepareChange(current: file.read(), target: target, book: &book, persist: vault.save)
         // Recheck immediately before the compare-and-replace. Other Codex clients do not
@@ -318,9 +321,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         try await applyChange(change, file: file, beforeWrite: { [self] in
             try runtime.requireStopped()
             try file.checkConfiguration()
-        }, launch: { [self] in try await runtime.launch() })
-        notify(target == nil ? "请完成官方登录" : "已替换认证并重开客户端",
-               "请在 ChatGPT 头像菜单核对账号。额度查询成功不等于客户端已接受切换；登录失效时仍需重新登录。")
+        }, launch: { [self] in if hasDesktopApp { try await runtime.launch() } })
+        notify(hasDesktopApp ? "已替换认证并重开客户端" : "已替换认证",
+               hasDesktopApp ? "请在 ChatGPT 头像菜单核对账号。" : "之后启动的 Codex CLI 或 IDE 任务将使用此账号。")
     }
 
     private func perform(_ operation: @escaping @MainActor () async throws -> Void) {
