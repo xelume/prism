@@ -70,7 +70,7 @@ Prism $releaseTag (build $buildNumber)
 - 安装：打开 DMG，将 Prism.app 拖入 Applications，然后推出磁盘映像，从“应用程序”打开应用。
 - 支持 Apple Silicon（arm64），最低 macOS ${minimumOS}。
 - 此包仅使用临时（ad-hoc）签名，未经 Developer ID 签名或 Apple 公证，macOS 可能阻止打开。不是正式公证发行版。
-- 目前只兼容已检查版本 26.825.51511 的官方 ChatGPT 客户端，以及默认文件认证或 Codex Direct Keyring；未知布局和 Secrets 后端会安全停止。
+- 目前只兼容已检查版本 26.825.51511 的官方 ChatGPT 客户端及默认 auth.json 文件认证；历史 Codex Auth 钥匙串条目会被忽略。
 - 自动化测试不验证真实账号登录、钥匙串授权或真实额度查询，请在推送发布标签前完成必要的人工验收。
 - 校验下载文件：将 DMG 与 SHA256SUMS.txt 放在同一目录，运行 shasum -a 256 -c SHA256SUMS.txt。
 

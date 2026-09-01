@@ -1,23 +1,7 @@
 import AppKit
 import Security
 import LocalAuthentication
-import CryptoKit
 import Darwin
-
-func codexAuthStoreRejection(for status: OSStatus) -> String? {
-    switch status {
-    case errSecSuccess, errSecItemNotFound:
-        return nil
-    case errSecInteractionNotAllowed:
-        return "无法确认 Codex 的认证存储：钥匙串当前禁止交互或可能已锁定。请解锁登录钥匙串后重试；Prism 未修改当前登录。"
-    case errSecAuthFailed:
-        return "无法确认 Codex 的认证存储：macOS 拒绝了钥匙串访问。请检查 Prism 的钥匙串访问权限后重试；Prism 未修改当前登录。"
-    case errSecNotAvailable:
-        return "无法确认 Codex 的认证存储：当前无法使用系统钥匙串。请确认登录钥匙串可用后重试；Prism 未修改当前登录。"
-    default:
-        return "无法确认 Codex 的认证存储（系统错误 \(status)）。为避免切错账号，Prism 未修改当前登录。"
-    }
-}
 
 final class KeychainVault {
     private let query: [String: Any] = [
@@ -65,159 +49,6 @@ final class KeychainVault {
     }
 
 }
-
-enum CodexAuthStoreKind: Equatable {
-    case file
-    case directKeychain
-}
-
-enum CodexKeychainSelection: Equatable {
-    case file
-    case direct(account: String)
-}
-
-func selectCodexKeychain(expected: String, discovered: [String]) throws -> CodexKeychainSelection {
-    let candidates = Array(Set(discovered)).sorted()
-    if candidates.contains(expected) { return .direct(account: expected) }
-    guard !candidates.isEmpty else { return .file }
-    let pattern = #"^cli\|[0-9a-f]{16}$"#
-    let direct = candidates.filter {
-        $0.range(of: pattern, options: .regularExpression) != nil
-    }
-    guard direct.count == candidates.count else {
-        throw SwitchError("检测到 Prism 尚不支持的 Codex 钥匙串布局或 Secrets 后端。未修改当前登录。")
-    }
-    guard direct.count == 1, let account = direct.first else {
-        throw SwitchError("检测到多个 Codex Direct Keyring 项，无法确定当前客户端使用哪一个。未修改当前登录。")
-    }
-    return .direct(account: account)
-}
-
-final class DirectKeychainAuthStore: CodexAuthStore {
-    static let service = "Codex Auth"
-    let account: String
-    private let allowInteraction: Bool
-
-    init(home: URL, allowInteraction: Bool) {
-        let canonical = home.resolvingSymlinksInPath().standardizedFileURL.path
-        let digest = SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined()
-        account = "cli|" + digest.prefix(16)
-        self.allowInteraction = allowInteraction
-    }
-
-    init(account: String, allowInteraction: Bool) {
-        self.account = account
-        self.allowInteraction = allowInteraction
-    }
-
-    private func query(returnData: Bool = false, exactAccount: Bool = true,
-                       matchLimit: Bool = true) -> [String: Any] {
-        var request: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.service,
-            kSecAttrSynchronizable as String: false
-        ]
-        if matchLimit { request[kSecMatchLimit as String] = kSecMatchLimitOne }
-        if exactAccount { request[kSecAttrAccount as String] = account }
-        if returnData { request[kSecReturnData as String] = true }
-        if !allowInteraction {
-            let context = LAContext()
-            context.interactionNotAllowed = true
-            request[kSecUseAuthenticationContext as String] = context
-        }
-        return request
-    }
-
-    func probe(exactAccount: Bool = true) -> OSStatus {
-        SecItemCopyMatching(query(exactAccount: exactAccount) as CFDictionary, nil)
-    }
-
-    func discoverAccounts() throws -> [String] {
-        var request = query(exactAccount: false, matchLimit: false)
-        request[kSecMatchLimit as String] = kSecMatchLimitAll
-        request[kSecReturnAttributes as String] = true
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(request as CFDictionary, &result)
-        if status == errSecItemNotFound { return [] }
-        guard status == errSecSuccess else {
-            throw SwitchError(codexAuthStoreRejection(for: status)
-                ?? "无法确认 Codex 钥匙串认证。")
-        }
-        let items: [[String: Any]]
-        if let list = result as? [[String: Any]] {
-            items = list
-        } else if let item = result as? [String: Any] {
-            items = [item]
-        } else {
-            throw SwitchError("无法识别 Codex 钥匙串元数据。未读取或修改当前登录。")
-        }
-        return items.compactMap { $0[kSecAttrAccount as String] as? String }
-    }
-
-    func read() throws -> Data? {
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query(returnData: true) as CFDictionary, &result)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = result as? Data else {
-            throw SwitchError(Self.message(status, action: "读取"))
-        }
-        guard data.count < 1_048_576 else { throw SwitchError("Codex 钥匙串认证过大，Prism 已停止操作。") }
-        return data
-    }
-
-    func replace(with data: Data?, expected: Data?) throws {
-        guard try read() == expected else {
-            throw SwitchError("Codex 钥匙串认证已被其他进程改变，已取消切换。请关闭 Codex 后重试。")
-        }
-        if let data {
-            _ = try AuthSnapshot(data)
-            let status: OSStatus
-            if expected == nil {
-                var item = query(matchLimit: false)
-                item.removeValue(forKey: kSecUseAuthenticationContext as String)
-                item[kSecValueData as String] = data
-                item[kSecAttrLabel as String] = "Codex Auth"
-                item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-                status = SecItemAdd(item as CFDictionary, nil)
-            } else {
-                status = SecItemUpdate(query(matchLimit: false) as CFDictionary,
-                    [kSecValueData as String: data] as CFDictionary)
-            }
-            guard status == errSecSuccess else { throw SwitchError(Self.message(status, action: "写入")) }
-        } else if expected != nil {
-            let status = SecItemDelete(query(matchLimit: false) as CFDictionary)
-            guard status == errSecSuccess else { throw SwitchError(Self.message(status, action: "移除")) }
-        }
-        guard try read() == data else { throw SwitchError("Codex 钥匙串认证写入后校验失败，已停止操作。") }
-    }
-
-    private static func message(_ status: OSStatus, action: String) -> String {
-        switch status {
-        case errSecInteractionNotAllowed:
-            return "无法\(action) Codex 钥匙串认证：钥匙串已锁定或禁止交互。请点击“授权并重试”。"
-        case errSecAuthFailed:
-            return "无法\(action) Codex 钥匙串认证：macOS 拒绝了访问。Prism 未修改当前登录。"
-        case errSecNotAvailable:
-            return "无法\(action) Codex 钥匙串认证：系统钥匙串当前不可用。Prism 未修改当前登录。"
-        default:
-            return "无法\(action) Codex 钥匙串认证（系统错误 \(status)）。Prism 未修改当前登录。"
-        }
-    }
-}
-
-struct CodexAuthAccess {
-    let store: any CodexAuthStore
-    let file: AuthFile
-    let kind: CodexAuthStoreKind
-    let preference: AuthStorePreference
-
-    func validateConfiguration() throws {
-        guard try file.credentialStorePreference() == preference else {
-            throw SwitchError("认证存储配置已发生变化，已取消切换。请关闭 Codex 后重试。")
-        }
-    }
-}
-
 @MainActor
 final class MacRuntime {
     let appURL = URL(fileURLWithPath: "/Applications/ChatGPT.app")
@@ -252,7 +83,7 @@ final class MacRuntime {
         lockDescriptor = fd
     }
 
-    func preflight(allowInteraction: Bool = true) throws -> CodexAuthAccess {
+    func preflight() throws -> AuthFile {
         guard let bundle = Bundle(url: appURL), bundle.bundleIdentifier == "com.openai.codex",
               bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == "26.825.51511" else {
             throw SwitchError("当前客户端不是已检查的 26.825.51511 版本。请先复核兼容性，工具不会直接替换认证。")
@@ -273,36 +104,8 @@ final class MacRuntime {
             }
         }
         let file = try AuthFile(home: home)
-        let preference = try file.credentialStorePreference()
-        let expectedKeychain = DirectKeychainAuthStore(home: home, allowInteraction: allowInteraction)
-        let directStatus = expectedKeychain.probe()
-        let kind: CodexAuthStoreKind
-        let store: any CodexAuthStore
-        switch preference {
-        case .file:
-            kind = .file
-            store = file
-        case .keyring, .auto, .unspecified:
-            if directStatus != errSecSuccess && directStatus != errSecItemNotFound {
-                throw SwitchError(codexAuthStoreRejection(for: directStatus)
-                    ?? "无法确认 Codex 钥匙串认证。")
-            }
-            let selection = try selectCodexKeychain(expected: expectedKeychain.account,
-                discovered: directStatus == errSecSuccess
-                    ? [expectedKeychain.account] : expectedKeychain.discoverAccounts())
-            switch selection {
-            case .direct(let account):
-                kind = .directKeychain
-                store = DirectKeychainAuthStore(account: account, allowInteraction: allowInteraction)
-            case .file where preference == .keyring:
-                kind = .directKeychain
-                store = expectedKeychain
-            case .file:
-                kind = .file
-                store = file
-            }
-        }
-        return CodexAuthAccess(store: store, file: file, kind: kind, preference: preference)
+        try file.checkConfiguration()
+        return file
     }
 
     func requireStopped() throws {
