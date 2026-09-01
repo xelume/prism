@@ -92,7 +92,7 @@ func runShutdownTests() async throws {
     do {
         try await ClientShutdown().quit(roots: [editor.root], operations: editor.operations)
     } catch { editorError = error.localizedDescription }
-    try expect(editorError.contains("VS Code 的 Codex 扩展") && editorError.contains("完全退出 VS Code")
+    try expect(editorError.contains("来自 VS Code 的 Codex") && editorError.contains("完全退出 VS Code")
         && editorError.contains("48407") && editorError.contains("48305"),
         "extension blocker names the host, recovery action, and process identifiers")
     try expect(!editor.quitCalled && editor.signals.isEmpty, "extension guidance does not grant signal authority")

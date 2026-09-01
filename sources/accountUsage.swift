@@ -44,11 +44,11 @@ enum UsageFailure: Error, Equatable {
 
     var message: String {
         switch self {
-        case .expired: return "登录已失效，请点击账号重新登录"
-        case .forbidden: return "无权查询额度或请求被服务拒绝"
-        case .throttled: return "请求受限，稍后自动重试"
-        case .unavailable: return "暂时无法获取额度"
-        case .unsupported: return "额度数据暂不支持"
+        case .expired: return "需要重新登录"
+        case .forbidden: return "暂时无法查看额度"
+        case .throttled: return "请稍后再试"
+        case .unavailable: return "暂时无法查看额度"
+        case .unsupported: return "暂无额度信息"
         }
     }
 

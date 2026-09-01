@@ -44,9 +44,9 @@ struct ProcessEntry {
                 && components[$0 + 1] == "extensions"
                 && components[$0 + 2].hasPrefix("openai.chatgpt-")
         }) {
-            return "VS Code 的 Codex 扩展：请保存任务并完全退出 VS Code，仅关闭扩展面板可能无法停止后台进程"
+            return "来自 VS Code 的 Codex：请保存工作并完全退出 VS Code；只关闭 Codex 面板可能无法结束后台任务"
         }
-        return "独立终端／IDE 进程或归属未确认：请结束相关任务及其后台服务"
+        return "来自终端或 IDE 的 Codex：请结束相关任务和后台服务"
     }
 }
 
@@ -99,9 +99,9 @@ struct ClientProcessTree {
         let remaining = blockers(in: snapshot)
         guard remaining.isEmpty else {
             let details = remaining.map {
-                "• \($0.summary) — \(owns($0) ? "客户端残留" : $0.independentProcessGuidance)"
+                "• \($0.summary) — \(owns($0) ? "ChatGPT 尚未完全退出" : $0.independentProcessGuidance)"
             }.joined(separator: "\n")
-            throw SwitchError("仍有进程可能使用当前认证，切换已停止：\n\n\(details)\n\n请结束独立终端／IDE 任务或其后台服务后重试。无法确认归属的进程不会自动结束。")
+            throw SwitchError("请先结束以下 Codex 任务：\n\n\(details)")
         }
     }
 }
@@ -164,7 +164,7 @@ final class ClientShutdown {
         let candidates = tree.residuals(in: snapshot).filter(\.hasVerifiedExecutablePath)
         guard !candidates.isEmpty else { return }
         guard operations.confirmForce(candidates) else {
-            throw SwitchError("已取消强制结束，未切换账号。客户端可能已部分退出，可手动重新打开。")
+            throw SwitchError("已取消强制结束，账号没有切换。ChatGPT 可能已退出部分进程，你可以手动重新打开。")
         }
         // Re-read after the modal dialog: only the exact reviewed instances are approved.
         let fresh = try operations.read()

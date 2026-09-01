@@ -38,12 +38,12 @@ final class AboutWindow: NSWindowController {
         updateStatus.widthAnchor.constraint(equalToConstant: 388).isActive = true
         let project = NSButton(title: "项目主页", target: self, action: #selector(openProject))
         project.bezelStyle = .rounded
-        let safety = NSButton(title: "安全与兼容说明…", target: self, action: #selector(showSafety))
+        let safety = NSButton(title: "账号安全说明…", target: self, action: #selector(showSafety))
         safety.bezelStyle = .rounded
         let links = NSStackView(views: [project, safety])
         links.spacing = 12
         let description = NSTextField(wrappingLabelWithString:
-            "管理本机 ChatGPT / Codex 账号，保留设置、插件和任务文件。账号备份仅保存在本机钥匙串。\n\n更新仅替换并重启 Prism，不会退出官方客户端或更改登录。")
+            "快速保存和切换 ChatGPT / Codex 账号。")
         description.alignment = .center
         description.widthAnchor.constraint(equalToConstant: 388).isActive = true
         let disclaimer = NSTextField(labelWithString: "独立工具，未经 OpenAI 官方支持。")
@@ -80,13 +80,13 @@ final class AboutWindow: NSWindowController {
         automaticButton.isEnabled = updates.isConfigured
         automaticButton.state = updates.automaticallyChecks ? .on : .off
         if updates.installationGate.accountOperationInProgress {
-            updateStatus.stringValue = "正在处理账号，更新安装将等待操作完成。"
+            updateStatus.stringValue = "账号操作完成后即可安装更新。"
         } else if let message = updates.configurationMessage {
             updateStatus.stringValue = message
         } else if let version = updates.availableVersion {
             updateStatus.stringValue = "新版本 \(version) 可用，点击查看更新说明。"
         } else {
-            updateStatus.stringValue = "自动检查只提醒，不会自动下载或安装。"
+            updateStatus.stringValue = "发现新版本时提醒我，不会自动下载或安装。"
         }
     }
 
@@ -99,8 +99,8 @@ final class AboutWindow: NSWindowController {
 
     @objc private func showSafety() {
         let alert = NSAlert()
-        alert.messageText = "安全与兼容说明"
-        alert.informativeText = "仅更换默认 ~/.codex/auth.json，保留设置、插件和任务文件。账号备份存入本机钥匙串，不同步到 iCloud。\n\n支持已检查版本 26.825.51511 的桌面客户端或权限安全的独立 Codex CLI。添加和重新登录账号时，由官方 Codex 在隔离临时目录中完成浏览器登录，不中断当前任务；Prism 不读取密码、不自行刷新令牌。切换时会清理已确认属于桌面客户端的残留进程；强制结束前需确认，独立终端／IDE 进程不会自动结束。\n\n本地任务文件不按账号隔离，切换账号不会隔离数据；云端会话、订阅、权限和插件授权由当前账号决定。本工具未经 OpenAI 官方支持。"
+        alert.messageText = "账号安全说明"
+        alert.informativeText = "账号信息保存在本机钥匙串中，不会同步到 iCloud。Prism 不会读取你的密码。\n\n切换账号不会删除本地设置和任务，但云端内容、订阅及权限取决于当前账号。\n\n本工具未经 OpenAI 官方支持。"
         alert.addButton(withTitle: "知道了")
         if let window { alert.beginSheetModal(for: window) }
     }

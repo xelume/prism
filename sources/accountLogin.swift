@@ -5,14 +5,14 @@ enum CodexExecutable {
     static func resolve(configuredPath: String?, searchPaths: [String]) throws -> URL {
         if let configuredPath, !configuredPath.isEmpty {
             guard let executable = validate(configuredPath) else {
-                throw SwitchError("CODEX_CLI_PATH 指向的文件不存在、不可执行或权限不安全。")
+                throw SwitchError("无法使用指定的 Codex CLI，请检查设置。")
             }
             return executable
         }
         for path in searchPaths {
             if let executable = validate(path) { return executable }
         }
-        throw SwitchError("未找到可用的 Codex CLI。请安装 Codex CLI，或通过 CODEX_CLI_PATH 指定其完整路径。")
+        throw SwitchError("没有找到可用的 Codex，请先完成安装。")
     }
 
     private static func validate(_ path: String) -> URL? {
@@ -32,16 +32,17 @@ struct AccountLogin {
     static func remember(_ data: Data, expectedIdentity: String?, in book: inout AccountBook) throws -> SavedAccount {
         let snapshot = try AuthSnapshot(data)
         if let expectedIdentity, snapshot.identity != expectedIdentity {
-            throw SwitchError("登录的账号与需要重新认证的账号不一致，未修改任何账号备份。")
+            throw SwitchError("登录的不是原账号，请重新登录。")
         }
         book.remember(snapshot)
         guard let account = book.accounts.first(where: { $0.identity == snapshot.identity }) else {
-            throw SwitchError("登录认证未能保存到账号列表。")
+            throw SwitchError("无法保存这个账号，请再试一次。")
         }
         return account
     }
 
-    static func run(executable: URL, timeout: TimeInterval = 600) async throws -> Data {
+    static func run(executable: URL, timeout: TimeInterval = 180,
+                    terminationGrace: TimeInterval = 1) async throws -> Data {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
 
@@ -58,13 +59,19 @@ struct AccountLogin {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
 
-        let status = try await terminationStatus(of: process, timeout: timeout)
+        let waiter = LoginProcessWaiter(process: process, timeout: timeout, terminationGrace: terminationGrace)
+        let status = try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await waiter.run()
+        } onCancel: {
+            waiter.cancel()
+        }
         guard status == 0 else {
-            throw SwitchError("Codex 登录未完成或已取消，当前登录和账号备份均未修改。")
+            throw SwitchError("登录未完成或已取消。")
         }
         let file = try AuthFile(home: directory)
         guard let data = try file.read() else {
-            throw SwitchError("Codex 登录完成后没有生成文件认证，未修改账号备份。")
+            throw SwitchError("未能获取账号信息，请重新登录。")
         }
         _ = try AuthSnapshot(data)
         return data
@@ -76,31 +83,80 @@ struct AccountLogin {
             guard let base = buffer.baseAddress, let result = mkdtemp(base) else { return nil }
             return String(cString: result)
         }
-        guard let path else { throw SwitchError("无法创建隔离登录目录。") }
+        guard let path else { throw SwitchError("无法开始登录，请稍后再试。") }
         guard chmod(path, 0o700) == 0 else {
             try? FileManager.default.removeItem(atPath: path)
-            throw SwitchError("无法保护隔离登录目录。")
+            throw SwitchError("无法开始登录，请检查文件权限。")
         }
         return URL(fileURLWithPath: path, isDirectory: true)
     }
 
-    private static func terminationStatus(of process: Process, timeout: TimeInterval) async throws -> Int32 {
+}
+
+private final class LoginProcessWaiter: @unchecked Sendable {
+    private enum StopReason { case canceled, timedOut }
+
+    private let process: Process
+    private let timeout: TimeInterval
+    private let terminationGrace: TimeInterval
+    private let lock = NSLock()
+    private var stopReason: StopReason?
+    private var started = false
+
+    init(process: Process, timeout: TimeInterval, terminationGrace: TimeInterval) {
+        self.process = process
+        self.timeout = timeout
+        self.terminationGrace = terminationGrace
+    }
+
+    func run() async throws -> Int32 {
         try await withCheckedThrowingContinuation { continuation in
-            let timeoutWork = DispatchWorkItem {
-                if process.isRunning { process.terminate() }
+            lock.lock()
+            if stopReason == .canceled {
+                lock.unlock()
+                continuation.resume(throwing: CancellationError())
+                return
             }
-            process.terminationHandler = { finished in
-                timeoutWork.cancel()
-                continuation.resume(returning: finished.terminationStatus)
+            process.terminationHandler = { [weak self] finished in
+                guard let self else { return }
+                self.lock.lock()
+                let reason = self.stopReason
+                self.lock.unlock()
+                switch reason {
+                case .canceled: continuation.resume(throwing: CancellationError())
+                case .timedOut: continuation.resume(throwing: SwitchError("等待登录超时。当前账号和已保存的账号都没有改变。"))
+                case nil: continuation.resume(returning: finished.terminationStatus)
+                }
             }
             do {
                 try process.run()
-                DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: timeoutWork)
+                started = true
+                lock.unlock()
+                DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { [weak self] in
+                    self?.stop(.timedOut)
+                }
             } catch {
-                timeoutWork.cancel()
                 process.terminationHandler = nil
-                continuation.resume(throwing: SwitchError("无法启动 Codex 登录组件。"))
+                lock.unlock()
+                continuation.resume(throwing: SwitchError("无法打开登录页面，请检查 Codex 是否已安装。"))
             }
+        }
+    }
+
+    func cancel() { stop(.canceled) }
+
+    private func stop(_ reason: StopReason) {
+        lock.lock()
+        guard stopReason == nil else { lock.unlock(); return }
+        stopReason = reason
+        let shouldStop = started && process.isRunning
+        let pid = process.processIdentifier
+        lock.unlock()
+        guard shouldStop else { return }
+        process.terminate()
+        DispatchQueue.global().asyncAfter(deadline: .now() + terminationGrace) { [weak process] in
+            guard let process, process.isRunning, process.processIdentifier == pid else { return }
+            Darwin.kill(pid, SIGKILL)
         }
     }
 }

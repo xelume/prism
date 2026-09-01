@@ -1,6 +1,94 @@
 import AppKit
 
 @MainActor
+private final class LoginWaitPanel: NSObject, NSWindowDelegate {
+    private let panel: NSPanel
+    private let message = NSTextField(wrappingLabelWithString:
+        "请在浏览器中完成登录。不想继续时可以取消，当前账号不会改变。")
+    private let cancelButton = NSButton(title: "取消登录", target: nil, action: nil)
+    private var finishing = false
+    var onCancel: (() -> Void)?
+
+    override init() {
+        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 280),
+            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        super.init()
+        panel.title = "Prism"
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.isMovableByWindowBackground = true
+        panel.isReleasedWhenClosed = false
+        panel.hidesOnDeactivate = false
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.delegate = self
+
+        let icon = NSImageView(image: NSApp.applicationIconImage)
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.widthAnchor.constraint(equalToConstant: 64).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 64).isActive = true
+
+        let title = NSTextField(labelWithString: "正在等待浏览器登录")
+        title.font = .boldSystemFont(ofSize: 17)
+        title.alignment = .center
+        message.alignment = .center
+        message.maximumNumberOfLines = 3
+
+        let progress = NSProgressIndicator()
+        progress.style = .spinning
+        progress.controlSize = .small
+        progress.startAnimation(nil)
+        cancelButton.bezelStyle = .rounded
+        cancelButton.target = self
+        cancelButton.action = #selector(cancel)
+        cancelButton.keyEquivalent = "\u{1b}"
+
+        let stack = NSStackView(views: [icon, title, message, progress, cancelButton])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 14
+        stack.setCustomSpacing(18, after: icon)
+        stack.setCustomSpacing(20, after: progress)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        guard let content = panel.contentView else { return }
+        content.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 36),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -36),
+            stack.centerYAnchor.constraint(equalTo: content.centerYAnchor, constant: 6),
+            message.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            cancelButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 140)
+        ])
+    }
+
+    func show() {
+        NSApp.activate(ignoringOtherApps: true)
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    func finish() {
+        finishing = true
+        panel.orderOut(nil)
+        panel.close()
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if finishing { return true }
+        cancel()
+        return false
+    }
+
+    @objc private func cancel() {
+        guard !finishing, cancelButton.isEnabled else { return }
+        cancelButton.isEnabled = false
+        cancelButton.title = "正在取消…"
+        message.stringValue = "正在结束这次登录，当前账号和已保存的账号都不会改变。"
+        onCancel?()
+    }
+}
+
+@MainActor
 final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var status: NSStatusItem!
     private let runtime = MacRuntime()
@@ -10,6 +98,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var aboutWindow: AboutWindow?
     private var updateItem: NSMenuItem?
     private var refreshTimer: Timer?
+    private var loginTask: Task<Void, Never>?
     private var menuIsOpen = false
     private var accountItems: [String: [NSMenuItem]] = [:]
     private var accountStatusItem: NSMenuItem?
@@ -84,7 +173,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         accountSeparator = .separator()
         menu.addItem(accountSeparator!)
         addItem("添加账号…", action: #selector(addAccount), to: menu)
-        addItem("保存当前账号", action: #selector(saveCurrent), to: menu)
+        addItem("保存当前账号…", action: #selector(saveCurrent), to: menu)
         menu.addItem(.separator())
         addItem("关于 Prism…", action: #selector(about), to: menu)
         updateItem = addItem(updates.menuTitle, action: #selector(checkForUpdates), to: menu)
@@ -115,9 +204,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateItem?.isEnabled = updates.canCheck
 
         let loadFailed = usage.loadError != nil
-        accountStatusItem?.title = loadFailed ? "无法读取账号…"
-            : usage.accounts.isEmpty ? (usage.refreshing ? "正在读取账号…" : "暂无已保存账号")
-            : "当前未登录"
+        accountStatusItem?.title = loadFailed ? "账号列表加载失败…"
+            : usage.accounts.isEmpty ? (usage.refreshing ? "正在加载账号…" : "还没有保存账号")
+            : "尚未登录 ChatGPT"
         accountStatusItem?.action = loadFailed ? #selector(accountLoadError) : nil
         accountStatusItem?.isEnabled = loadFailed && actionsAllowed
         accountStatusItem?.isHidden = !loadFailed && !usage.accounts.isEmpty && usage.currentIdentity != nil
@@ -143,13 +232,13 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let identities = Set(usage.accounts.map(\.identity))
         for (identity, rows) in accountItems where !identities.contains(identity) {
             rows[0].attributedTitle = nil
-            rows[0].title = loadFailed ? "账号暂不可用" : "账号已移除"
+            rows[0].title = loadFailed ? "暂时无法加载账号" : "这个账号已移除"
             rows[0].state = .off
             rows[0].isEnabled = false
             rows[0].setAccessibilityLabel(rows[0].title)
             for row in rows.dropFirst() {
                 row.attributedTitle = nil
-                row.title = "额度暂不可用"
+                row.title = "暂时无法查看额度"
             }
         }
         let now = Date()
@@ -170,10 +259,10 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 rows[0].attributedTitle = NSAttributedString(string: rows[0].title,
                     attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)])
             }
-            let pending = state?.value != nil ? "暂无额度数据" : (state?.failure != nil ? "额度暂不可用" : (usage.refreshing ? "正在查询额度…" : "尚未获取额度"))
+            let pending = state?.value != nil ? "暂无额度信息" : (state?.failure != nil ? "暂时无法查看额度" : (usage.refreshing ? "正在更新额度…" : "额度尚未更新"))
             let titles = [
-                windowTitle("5h", state?.value?.fiveHour, failed: state?.failure != nil, pending: pending, now: now),
-                windowTitle("Week", state?.value?.week, failed: state?.failure != nil, pending: pending, now: now)
+                windowTitle("5 小时", state?.value?.fiveHour, failed: state?.failure != nil, pending: pending, now: now),
+                windowTitle("每周", state?.value?.week, failed: state?.failure != nil, pending: pending, now: now)
             ]
             for (row, title) in zip(rows.dropFirst(), titles) {
                 row.title = title
@@ -188,11 +277,11 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func failureTitle(_ failure: UsageFailure) -> String {
         switch failure {
-        case .expired: return "登录失效"
-        case .forbidden: return "访问受限"
-        case .throttled: return "稍后重试"
-        case .unavailable: return "查询失败"
-        case .unsupported: return "暂不支持"
+        case .expired: return "需要重新登录"
+        case .forbidden: return "无法查看额度"
+        case .throttled: return "稍后再试"
+        case .unavailable: return "更新失败"
+        case .unsupported: return "暂无额度信息"
         }
     }
 
@@ -202,7 +291,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let elapsed = window.resetsAt.map { $0 <= now.timeIntervalSince1970 } ?? false
         var text = "\(label) \(failed || elapsed ? "上次剩余" : "剩余") \(window.remainingPercent)%"
         guard let reset = window.resetsAt else { return text + " · 重置时间未知" }
-        if label == "5h" {
+        if label == "5 小时" {
             text += " · " + resetCountdown(reset, now: now)
         } else {
             let date = Date(timeIntervalSince1970: reset)
@@ -231,7 +320,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func accountLoadError() {
-        notify("无法读取账号", usage.loadError ?? "请重新展开菜单重试。")
+        notify("账号列表加载失败", usage.loadError ?? "请关闭菜单后重新打开，再试一次。")
     }
 
     @objc private func authorizeAccounts() {
@@ -248,10 +337,10 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         perform { [self] in
             let file = try runtime.authFile()
             var book = try vault.load()
-            guard let current = try file.read() else { throw SwitchError("当前没有文件登录状态。请先在官方客户端登录。") }
+            guard let current = try file.read() else { throw SwitchError("还没有可保存的账号。请先登录 ChatGPT 或 Codex，再试一次。") }
             book.remember(try AuthSnapshot(current))
             try vault.save(book)
-            notify("账号已保存", "认证备份已更新到本机钥匙串。")
+            notify("账号已保存", "以后可以从 Prism 切换回这个账号。")
         }
     }
 
@@ -263,8 +352,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do { hasDesktopApp = try runtime.desktopApp() != nil }
         catch { show(error); return }
         let details = hasDesktopApp
-            ? "将退出 ChatGPT，并自动备份当前账号的最新认证，再重开客户端。请先结束终端／IDE 中的 Codex 任务；这些客户端也会共用切换后的账号。设置与任务文件不变。"
-            : "将自动备份当前账号的最新认证，再替换默认认证。请先结束终端／IDE 中的 Codex 任务；Prism 不会强制结束它们，也不会启动新进程。设置与任务文件不变。"
+            ? "切换时 ChatGPT 会重新打开。请先结束正在运行的 Codex 任务。"
+            : "请先结束正在运行的 Codex 任务。"
         let alert = makeAlert("是否切换到「\(account.label)」？", details)
         alert.addButton(withTitle: "取消")
         alert.addButton(withTitle: hasDesktopApp ? "切换并重开" : "切换账号")
@@ -273,22 +362,49 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func addAccount() {
-        let alert = makeAlert("添加另一个账号", "将在浏览器中通过官方 Codex 登录另一个 ChatGPT 账号。当前 ChatGPT、Codex 和 IDE 任务不会退出，当前登录不会改变。登录结果只在隔离目录中暂存，校验后保存到本机钥匙串。")
-        alert.addButton(withTitle: "打开登录页")
+        let alert = makeAlert("添加另一个账号", "将在浏览器中登录另一个 ChatGPT 账号。")
+        alert.addButton(withTitle: "继续登录")
         alert.addButton(withTitle: "取消")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        perform { [self] in try await loginAccount(expectedIdentity: nil) }
+        performLogin(expectedIdentity: nil)
     }
 
     @objc private func reauthenticateAccount(_ sender: NSMenuItem) {
         guard !busy, let target = sender.representedObject as? String,
               let account = usage.accounts.first(where: { $0.identity == target }),
               usage.states[target]?.failure == .expired else { return }
-        let alert = makeAlert("重新登录「\(account.label)」？", "将在浏览器中通过官方 Codex 重新认证此账号。当前 ChatGPT、Codex 和 IDE 任务不会退出，当前登录不会改变。必须登录同一个账号，否则不会更新备份。")
-        alert.addButton(withTitle: "打开登录页")
+        let alert = makeAlert("重新登录「\(account.label)」？", "请在浏览器中登录同一个账号。")
+        alert.addButton(withTitle: "继续登录")
         alert.addButton(withTitle: "取消")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        perform { [self] in try await loginAccount(expectedIdentity: target) }
+        performLogin(expectedIdentity: target)
+    }
+
+    private func performLogin(expectedIdentity: String?) {
+        guard !busy, updates.installationGate.beginAccountOperation() else { return }
+        busy = true
+        aboutWindow?.refresh()
+        usage.pause()
+        rebuildMenu()
+        let waiting = LoginWaitPanel()
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                waiting.finish()
+                self.loginTask = nil
+                self.busy = false
+                self.updates.installationGate.endAccountOperation()
+                self.usage.resume()
+                self.aboutWindow?.refresh()
+                self.rebuildMenu()
+            }
+            do { try await self.loginAccount(expectedIdentity: expectedIdentity) }
+            catch is CancellationError { }
+            catch { self.show(error) }
+        }
+        loginTask = task
+        waiting.onCancel = { [weak self] in self?.loginTask?.cancel() }
+        waiting.show()
     }
 
     private func loginAccount(expectedIdentity: String?) async throws {
@@ -297,19 +413,18 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let data = try await AccountLogin.run(executable: executable)
         let account = try AccountLogin.remember(data, expectedIdentity: expectedIdentity, in: &book)
         try vault.save(book)
-        notify(expectedIdentity == nil ? "账号已添加" : "账号已重新登录",
-               "「\(account.label)」已保存到本机钥匙串。当前登录未改变。")
+        notify(expectedIdentity == nil ? "账号已添加" : "账号已重新登录", "「\(account.label)」现在可以切换了。")
     }
 
     private func change(to target: String) async throws {
         let file = try runtime.authFile(createDirectory: true)
         if let current = try file.read(), try AuthSnapshot(current).identity == target {
-            notify("已是当前账号", "无需重复退出和重开客户端。")
+            notify("已经在使用这个账号", "无需再次切换。")
             return
         }
         var book = try vault.load()
         if !book.accounts.contains(where: { $0.identity == target }) {
-            throw SwitchError("目标备份不存在，未退出客户端。")
+            throw SwitchError("找不到这个账号，请重新添加。")
         }
         let hasDesktopApp = try runtime.desktopApp() != nil
         if hasDesktopApp { try await runtime.quitClient(confirmForce: confirmForceQuit) }
@@ -322,8 +437,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try runtime.requireStopped()
             try file.checkConfiguration()
         }, launch: { [self] in if hasDesktopApp { try await runtime.launch() } })
-        notify(hasDesktopApp ? "已替换认证并重开客户端" : "已替换认证",
-               hasDesktopApp ? "请在 ChatGPT 头像菜单核对账号。" : "之后启动的 Codex CLI 或 IDE 任务将使用此账号。")
+        notify("账号已切换", hasDesktopApp ? "ChatGPT 已重新打开。" : "切换完成。")
     }
 
     private func perform(_ operation: @escaping @MainActor () async throws -> Void) {
@@ -347,11 +461,11 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func confirmForceQuit(_ processes: [ProcessEntry]) -> Bool {
         let list = processes.map { "• " + $0.summary }.joined(separator: "\n")
-        let alert = makeAlert("强制结束仍未退出的客户端进程？",
-            "以下进程仍未退出，已确认属于本次客户端进程树。强制结束可能导致未保存内容或正在运行的任务丢失。\n\n\(list)\n\n只会结束清单中身份仍匹配的进程，不会强制结束独立终端／IDE 的 Codex。取消不会切换账号。")
+        let alert = makeAlert("ChatGPT 仍在运行，要强制结束吗？",
+            "强制结束可能丢失未保存的内容或正在运行的任务。\n\n\(list)")
         alert.alertStyle = .warning
         alert.addButton(withTitle: "取消切换")
-        alert.addButton(withTitle: "强制结束并继续")
+        alert.addButton(withTitle: "强制结束并切换")
         return alert.runModal() == .alertSecondButtonReturn
     }
 
@@ -370,8 +484,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func show(_ error: Error) {
-        let message = (error as? SwitchError)?.message ?? "操作失败。未输出认证内容；请检查文件权限或钥匙串访问权限。"
-        notify("操作未完成", message)
+        let message = (error as? SwitchError)?.message ?? "请稍后再试。"
+        notify("未能完成操作", message)
     }
 
     @objc private func about() {

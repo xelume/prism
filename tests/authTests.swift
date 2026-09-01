@@ -184,6 +184,38 @@ func runTransitionTests() async throws {
     try manager.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     defer { try? manager.removeItem(at: root) }
     let file = try AuthFile(home: root)
+    let stubbornCLI = root.appendingPathComponent("stubborn-codex")
+    try Data("#!/bin/sh\nexec /usr/bin/python3 -c 'import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)'\n".utf8)
+        .write(to: stubbornCLI)
+    try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: stubbornCLI.path)
+    func loginDirectories() -> Set<String> {
+        Set(((try? manager.contentsOfDirectory(atPath: NSTemporaryDirectory())) ?? [])
+            .filter { $0.hasPrefix("prism-account-login.") })
+    }
+    let directoriesBeforeCancel = loginDirectories()
+    let canceledLogin = Task {
+        try await AccountLogin.run(executable: stubbornCLI, timeout: 30, terminationGrace: 0.05)
+    }
+    try await Task.sleep(nanoseconds: 100_000_000)
+    canceledLogin.cancel()
+    do {
+        _ = try await canceledLogin.value
+        throw SwitchError("Expected login cancellation")
+    } catch is CancellationError { }
+    try check(loginDirectories() == directoriesBeforeCancel, "cancel removes isolated login directory")
+    let directoriesBeforeTimeout = loginDirectories()
+    let timeoutStart = ProcessInfo.processInfo.systemUptime
+    do {
+        _ = try await AccountLogin.run(executable: stubbornCLI, timeout: 0.05, terminationGrace: 0.05)
+        throw SwitchError("Expected login timeout")
+    } catch is CancellationError {
+        throw SwitchError("Timeout must not report user cancellation")
+    } catch let error as SwitchError {
+        try check(error.message.contains("超时"), "timeout reports its actual reason")
+    }
+    try check(ProcessInfo.processInfo.systemUptime - timeoutStart < 2,
+              "timeout force-stops an unresponsive login process")
+    try check(loginDirectories() == directoriesBeforeTimeout, "timeout removes isolated login directory")
     let a = try fakeAuth(account: "simulated-a")
     let b = try fakeAuth(account: "simulated-b")
     let external = try fakeAuth(account: "simulated-external")
@@ -226,5 +258,5 @@ func runTransitionTests() async throws {
     try file.replace(with: a, expected: b)
     try await applyChange(change, file: file, beforeWrite: {}, launch: { launched = true })
     try check(launched && file.read() == b, "successful transition keeps target auth")
-    print("PASS: real transition orchestration with simulated launch failures, late process start, and external login")
+    print("PASS: cancel/timeout login cleanup, transition orchestration, launch failures, late process start, and external login")
 }

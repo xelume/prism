@@ -25,7 +25,7 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
     func start() {
         guard controller == nil else { return }
         guard UpdateConfiguration(info: Bundle.main.infoDictionary ?? [:]) != nil else {
-            configurationMessage = "此构建尚未配置更新签名公钥或 HTTPS 更新地址。请前往项目主页获取版本。"
+            configurationMessage = "这个版本暂时无法自动检查更新。你可以前往项目主页获取新版本。"
             onChange?()
             return
         }
@@ -43,7 +43,7 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
                 }
             ]
         } catch {
-            configurationMessage = "更新器无法启动。请前往项目主页下载，或重新安装应用后重试。"
+            configurationMessage = "无法启动更新功能。请前往项目主页下载新版本，或重新安装 Prism 后再试。"
             self.controller = nil
         }
         onChange?()
@@ -54,7 +54,7 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
         NSApp.activate(ignoringOtherApps: true)
         if let message = configurationMessage {
             let alert = NSAlert()
-            alert.messageText = "暂时无法检查更新"
+            alert.messageText = "无法检查更新"
             alert.informativeText = message
             alert.addButton(withTitle: "知道了")
             alert.addButton(withTitle: "打开项目主页")
@@ -73,7 +73,7 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
     func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
         guard !installationGate.accountOperationInProgress else {
             throw NSError(domain: "local.chatgptAccountSwitcher.updates", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "正在处理账号，请完成后再检查更新。"])
+                userInfo: [NSLocalizedDescriptionKey: "请等账号操作完成后，再检查更新。"])
         }
     }
 

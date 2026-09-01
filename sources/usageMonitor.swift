@@ -14,7 +14,7 @@ struct UsageAccounts {
             currentIdentity = snapshot.identity
             // Use the official client's latest token in memory, never overwrite the vault
             // from a background query (the switching transaction owns persistence).
-            currentBook.remember(snapshot, label: savedIdentities.contains(snapshot.identity) ? nil : "未保存账号")
+            currentBook.remember(snapshot, label: savedIdentities.contains(snapshot.identity) ? nil : "当前账号（尚未保存）")
         } else { currentIdentity = nil }
         accounts = currentBook.accounts
     }
@@ -142,7 +142,7 @@ final class UsageMonitor {
         } catch {
             guard generation == revision, !Task.isCancelled else { return }
             currentIdentity = nil
-            loadError = (error as? SwitchError)?.message ?? "无法加载账号，请检查登录状态和钥匙串权限。"
+            loadError = (error as? SwitchError)?.message ?? "无法加载账号。请确认已经登录，并允许 Prism 访问钥匙串。"
             // Do not keep background credentials alive when the keychain becomes locked.
             accounts = []
             savedIdentities = []
