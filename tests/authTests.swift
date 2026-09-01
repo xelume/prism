@@ -1,5 +1,6 @@
 import Foundation
 import Darwin
+import Security
 
 private func check(_ condition: @autoclosure () throws -> Bool, _ label: String) throws {
     guard try condition() else { throw SwitchError("Assertion failed: " + label) }
@@ -25,6 +26,22 @@ private func fakeAuth(account: String, subject: String = "test-person", revision
 }
 
 func runTests() throws {
+    try check(codexAuthStoreRejection(for: errSecItemNotFound) == nil,
+              "missing Codex keychain item permits file authentication")
+    try check(codexAuthStoreRejection(for: errSecSuccess) == nil,
+              "existing Direct Keyring item is supported")
+    try check(codexAuthStoreRejection(for: errSecInteractionNotAllowed)?.contains("禁止交互") == true,
+              "non-interactive keychain rejection explains the retry condition")
+    try check(codexAuthStoreRejection(for: errSecAuthFailed)?.contains("拒绝了钥匙串访问") == true,
+              "keychain authorization failure is distinct")
+    try check(codexAuthStoreRejection(for: errSecNotAvailable)?.contains("无法使用系统钥匙串") == true,
+              "unavailable keychain is distinct")
+    try check(codexAuthStoreRejection(for: -99999)?.contains("-99999") == true,
+              "unknown keychain status retains its diagnostic code")
+    try check(DirectKeychainAuthStore(home: URL(fileURLWithPath: "/Users/test/.codex"),
+        allowInteraction: false).account == "cli|d446e73b91d0fe9e",
+        "direct keychain account matches Codex CODEX_HOME hashing")
+
     let manager = FileManager.default
     let root = manager.temporaryDirectory.resolvingSymlinksInPath()
         .appendingPathComponent("account-switch-tests-" + UUID().uuidString)
@@ -101,11 +118,17 @@ func runTests() throws {
         _ = try prepareChange(current: refreshed, target: "missing", book: &book, persist: { _ in })
     }
 
-    try file.checkConfiguration()
+    try check(file.credentialStorePreference() == .unspecified, "missing auth preference uses runtime discovery")
     try Data("cli_auth_credentials_store = 'file' # explicit\n".utf8).write(to: config)
-    try file.checkConfiguration()
-    for line in ["cli_auth_credentials_store = 'auto'", "cli_auth_credentials_store = 'keyring'",
-                 "forced_chatgpt_workspace_id = 'SIMULATED'", "'cli_auth_credentials_store' = 'auto'"] {
+    try check(file.credentialStorePreference() == .file, "explicit file authentication")
+    try Data("cli_auth_credentials_store = \"keyring\"\n".utf8).write(to: config)
+    try check(file.credentialStorePreference() == .keyring, "explicit keyring authentication")
+    try Data("cli_auth_credentials_store = 'auto'\n".utf8).write(to: config)
+    try check(file.credentialStorePreference() == .auto, "automatic authentication storage")
+    for line in ["cli_auth_credentials_store = 'ephemeral'",
+                 "forced_chatgpt_workspace_id = 'SIMULATED'", "secret_auth_storage = true",
+                 "'cli_auth_credentials_store' = 'auto'",
+                 "cli_auth_credentials_store = 'file'\ncli_auth_credentials_store = 'keyring'"] {
         try Data(line.utf8).write(to: config)
         try rejects("custom auth config") { try file.checkConfiguration() }
     }

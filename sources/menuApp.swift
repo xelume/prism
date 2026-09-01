@@ -19,8 +19,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let self else { throw CancellationError() }
         let book = try await Task.detached { try KeychainVault().load(allowInteraction: false) }.value
         try Task.checkCancellation()
-        let file = try self.runtime.preflight(vault: self.vault)
-        return try UsageAccounts(book: book, current: file.read())
+        let access = try self.runtime.preflight(allowInteraction: false)
+        return try UsageAccounts(book: book, current: access.store.read())
     }, fetch: { auth in try await UsageClient().fetch(auth) })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -251,6 +251,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task { @MainActor in
             do {
                 _ = try await Task.detached { try KeychainVault().load() }.value
+                let access = try self.runtime.preflight()
+                _ = try access.store.read()
                 usage.refresh(force: true)
             } catch { show(error) }
         }
@@ -268,11 +270,11 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let label = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !label.isEmpty, label.count <= 80 else { show(SwitchError("请输入 1–80 个字符的账号名称。")); return }
         perform { [self] in
-            let file = try runtime.preflight(vault: vault)
+            let access = try runtime.preflight()
             var book = try vault.load()
             try await runtime.quitClient(confirmForce: confirmForceQuit)
             try runtime.requireStopped()
-            guard let current = try file.read() else { throw SwitchError("当前没有文件登录状态。请先在官方客户端登录。") }
+            guard let current = try access.store.read() else { throw SwitchError("当前没有登录状态。请先在官方客户端登录。") }
             book.remember(try AuthSnapshot(current), label: label)
             try vault.save(book)
             try await runtime.launch()
@@ -293,7 +295,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func addAccount() {
-        let alert = makeAlert("添加另一个账号", "工具会退出 ChatGPT，将当前最新认证安全保存到钥匙串，然后清除本机当前认证文件并重开官方登录页。它不会调用退出登录接口。请在浏览器选择另一个账号，登录完成后使用“保存／更新当前账号”为它命名。\n\n不会清除配置、插件或任务文件。若登录取消，可以从工具中切回已保存账号。")
+        let alert = makeAlert("添加另一个账号", "工具会退出 ChatGPT，将当前最新认证安全保存到钥匙串，然后清除当前 Codex 认证并重开官方登录页。它不会调用服务端退出登录。请在浏览器选择另一个账号，登录完成后使用“保存／更新当前账号”为它命名。\n\n不会清除配置、插件或任务文件。若登录取消，可以从工具中切回已保存账号。")
         alert.addButton(withTitle: "备份并打开登录页")
         alert.addButton(withTitle: "取消")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -301,8 +303,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func change(to target: String?) async throws {
-        let file = try runtime.preflight(vault: vault)
-        if let target, let current = try file.read(), try AuthSnapshot(current).identity == target {
+        let access = try runtime.preflight()
+        if let target, let current = try access.store.read(), try AuthSnapshot(current).identity == target {
             notify("已是当前账号", "无需重复退出和重开客户端。")
             return
         }
@@ -312,13 +314,12 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         try await runtime.quitClient(confirmForce: confirmForceQuit)
         try runtime.requireStopped()
-        let change = try prepareChange(current: file.read(), target: target, book: &book, persist: vault.save)
+        let change = try prepareChange(current: access.store.read(), target: target, book: &book, persist: vault.save)
         // Recheck immediately before the compare-and-replace. Other Codex clients do not
         // honor our lock, so this detects ordinary races but is not OS-wide isolation.
-        try await applyChange(change, file: file, beforeWrite: { [self] in
+        try await applyChange(change, file: access.store, beforeWrite: { [self] in
             try runtime.requireStopped()
-            try file.checkConfiguration()
-            try vault.rejectOtherAuthStores()
+            try access.validateConfiguration()
         }, launch: { [self] in try await runtime.launch() })
         notify(target == nil ? "请完成官方登录" : "已替换认证并重开客户端",
                "请在 ChatGPT 头像菜单核对账号。额度查询成功不等于客户端已接受切换；登录失效时仍需重新登录。")

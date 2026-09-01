@@ -8,6 +8,18 @@ struct SwitchError: LocalizedError {
     var errorDescription: String? { message }
 }
 
+protocol CodexAuthStore: AnyObject {
+    func read() throws -> Data?
+    func replace(with data: Data?, expected: Data?) throws
+}
+
+enum AuthStorePreference: Equatable {
+    case unspecified
+    case file
+    case keyring
+    case auto
+}
+
 // JWT claims identify local snapshots only; the official client validates authentication.
 struct AuthSnapshot {
     let data: Data
@@ -82,7 +94,7 @@ struct AccountBook: Codable {
 
 // Open the existing directory by descriptor and reject symlinks, unsafe permissions,
 // and cross-user files. All writes are confined to auth.json in this directory.
-final class AuthFile {
+final class AuthFile: CodexAuthStore {
     private let directory: Int32
 
     init(home: URL) throws {
@@ -132,24 +144,44 @@ final class AuthFile {
         return result
     }
 
-    func checkConfiguration() throws {
-        guard let data = try readFile("config.toml", secret: false) else { return }
+    func credentialStorePreference() throws -> AuthStorePreference {
+        guard let data = try readFile("config.toml", secret: false) else { return .unspecified }
         guard let text = String(data: data, encoding: .utf8) else { throw SwitchError("无法识别配置编码。") }
-        // These directives may change the auth store or add policy. Fail closed on any
-        // occurrence instead of implementing an incomplete TOML parser or overriding it.
-        let sensitiveKeys = ["cli_auth_credentials_store", "forced_login_method",
-            "forced_chatgpt_workspace_id", "forced_chatgpt_workspace_ids", "secrets_store"]
+        let sensitiveKeys = ["forced_login_method", "forced_chatgpt_workspace_id",
+            "forced_chatgpt_workspace_ids", "secrets_store", "secret_auth_storage"]
+        var preference = AuthStorePreference.unspecified
         for raw in text.components(separatedBy: .newlines) {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.isEmpty || line.hasPrefix("#") { continue }
+            if line.contains("cli_auth_credentials_store") {
+                let pattern = #"^cli_auth_credentials_store\s*=\s*['\"](file|keyring|auto|ephemeral)['\"]\s*(#.*)?$"#
+                guard let expression = try? NSRegularExpression(pattern: pattern),
+                      let match = expression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+                      let valueRange = Range(match.range(at: 1), in: line) else {
+                    throw SwitchError("检测到无法识别的认证存储配置。Prism 未修改当前登录。")
+                }
+                let next: AuthStorePreference
+                switch String(line[valueRange]) {
+                case "file": next = .file
+                case "keyring": next = .keyring
+                case "auto": next = .auto
+                default:
+                    throw SwitchError("检测到临时认证存储。Prism 不支持切换此登录方式。")
+                }
+                guard preference == .unspecified || preference == next else {
+                    throw SwitchError("检测到重复且冲突的认证存储配置。Prism 未修改当前登录。")
+                }
+                preference = next
+                continue
+            }
             for key in sensitiveKeys where line.contains(key) {
-                if key == "cli_auth_credentials_store",
-                   line.range(of: #"^cli_auth_credentials_store\s*=\s*['"]file['"]\s*(#.*)?$"#,
-                              options: .regularExpression) != nil { continue }
-                throw SwitchError("检测到自定义认证存储或登录策略。第一版不支持此配置，也不会修改它。")
+                throw SwitchError("检测到自定义认证存储或登录策略。Prism 不支持此配置，也不会修改它。")
             }
         }
+        return preference
     }
+
+    func checkConfiguration() throws { _ = try credentialStorePreference() }
 
     func replace(with data: Data?, expected: Data?) throws {
         guard try read() == expected else { throw SwitchError("认证已被其他进程改变，已取消切换。请关闭 Codex 后重试。") }
@@ -207,7 +239,7 @@ func prepareChange(current: Data?, target: String?, book: inout AccountBook,
 }
 
 @MainActor
-func applyChange(_ change: AuthChange, file: AuthFile,
+func applyChange(_ change: AuthChange, file: any CodexAuthStore,
                  beforeWrite: () throws -> Void, launch: () async throws -> Void) async throws {
     try beforeWrite()
     try file.replace(with: change.desired, expected: change.previous)
