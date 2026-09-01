@@ -65,6 +65,7 @@ struct SavedAccount: Codable {
     let identity: String
     var label: String
     var auth: Data
+    var hasCustomLabel: Bool?
 }
 
 struct AccountBook: Codable {
@@ -74,12 +75,37 @@ struct AccountBook: Codable {
     mutating func remember(_ snapshot: AuthSnapshot, label: String? = nil) {
         if let index = accounts.firstIndex(where: { $0.identity == snapshot.identity }) {
             accounts[index].auth = snapshot.data
-            if let label { accounts[index].label = label }
-            else if let email = snapshot.email { accounts[index].label = email }
+            if let label {
+                accounts[index].label = label
+                accounts[index].hasCustomLabel = false
+            } else if accounts[index].hasCustomLabel != true, let email = snapshot.email {
+                accounts[index].label = email
+            }
         } else {
             accounts.append(SavedAccount(identity: snapshot.identity,
-                label: label ?? snapshot.email ?? "账号 \(accounts.count + 1)", auth: snapshot.data))
+                label: label ?? snapshot.email ?? "账号 \(accounts.count + 1)", auth: snapshot.data,
+                hasCustomLabel: false))
         }
+    }
+
+    mutating func rename(identity: String, to proposedLabel: String) throws {
+        let label = proposedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !label.isEmpty, label.count <= 80,
+              label.rangeOfCharacter(from: .controlCharacters) == nil else {
+            throw SwitchError("账号名称应为 1–80 个字符，且不能包含控制字符。")
+        }
+        guard let index = accounts.firstIndex(where: { $0.identity == identity }) else {
+            throw SwitchError("找不到这个账号，请重新打开账号管理。")
+        }
+        accounts[index].label = label
+        accounts[index].hasCustomLabel = true
+    }
+
+    mutating func remove(identity: String) throws {
+        guard let index = accounts.firstIndex(where: { $0.identity == identity }) else {
+            throw SwitchError("找不到这个账号，请重新打开账号管理。")
+        }
+        accounts.remove(at: index)
     }
 
     func validate() throws {

@@ -85,9 +85,8 @@ final class MacRuntime {
 
     func desktopApp() throws -> URL? {
         guard FileManager.default.fileExists(atPath: appURL.path) else { return nil }
-        guard let bundle = Bundle(url: appURL), bundle.bundleIdentifier == "com.openai.codex",
-              bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == "26.825.51511" else {
-            throw SwitchError("当前 ChatGPT 版本暂不受支持。")
+        guard let bundle = Bundle(url: appURL), bundle.bundleIdentifier == "com.openai.codex" else {
+            throw SwitchError("无法识别 ChatGPT，请重新安装官方版本。")
         }
         var code: SecStaticCode?
         var requirement: SecRequirement?

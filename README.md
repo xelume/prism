@@ -11,7 +11,7 @@ Prism 只处理默认的 `~/.codex/auth.json`，不会切换整个 Codex 环境�
 ### 系统要求
 
 - Apple Silicon Mac，macOS 26.0 或更高版本。
-- 官方 macOS ChatGPT `26.825.51511`，或独立安装且文件权限安全的官方 Codex CLI。
+- 通过官方签名验证的 macOS ChatGPT，或独立安装且文件权限安全的官方 Codex CLI。
 - 使用默认 `~/.codex/auth.json` 和 ChatGPT 账号登录方式。
 
 Prism 目前使用临时签名，未经 Apple 公证，仅针对当前 Mac 架构构建。
@@ -53,6 +53,15 @@ Prism 启动后会读取已保存账号和当前默认认证，并查询各账�
 如果安装了受支持的 ChatGPT.app，Prism 会请求客户端正常退出，替换默认认证后重新打开 ChatGPT；仅使用 CLI 时不会启动桌面客户端。每次切换前，Prism 会先保存离开账号的最新认证，无需手动反复保存。
 
 如果后台账号显示“需要重新登录”，点击该账号并登录同一个账号即可更新备份。误登其他账号时不会覆盖原备份。
+
+### 管理已保存账号
+
+选择“管理账号…”可以重命名账号或删除账号备份：
+
+- 重命名只改变 Prism 中显示的名称，不修改实际登录账号；自定义名称不会在重新保存或重新登录时被邮箱覆盖。
+- 删除只移除 Prism 钥匙串中的备份，不删除默认认证，也不会退出当前登录。
+- 删除后台账号后不能再直接切回，需要重新添加或登录。
+- 删除当前账号的备份后，该账号会显示为尚未保存；重新选择“保存当前账号…”即可再次保存。
 
 #### 为什么有时不能切换
 
@@ -117,7 +126,7 @@ Prism 使用各账号现有的 access token 和账号请求头，向 `https://ch
 
 ### 兼容范围
 
-Prism 优先使用已检查版本的 ChatGPT.app 内置 Codex，也会从 `CODEX_CLI_PATH`、当前 `PATH` 以及常见 Homebrew、npm、nvm、Volta、asdf、mise 路径查找独立 Codex CLI。Prism 不自动下载可执行文件。
+Prism 会验证 ChatGPT.app 的 bundle ID 和官方 Apple 代码签名，不依赖某个精确的客户端版本号。添加账号时还会检查内置 Codex 的文件归属、写权限和可执行权限。Prism 也会从 `CODEX_CLI_PATH`、当前 `PATH` 以及常见 Homebrew、npm、nvm、Volta、asdf、mise 路径查找独立 Codex CLI，不自动下载可执行文件。
 
 以下情况不受支持，Prism 会拒绝操作而不会自动修改安全策略：
 

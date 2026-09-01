@@ -78,6 +78,35 @@ func runTests() throws {
     namedBook.remember(invalidEmail)
     try check(namedBook.accounts.last?.label == "账号 2", "missing email uses numbered label")
 
+    try namedBook.rename(identity: emailAuth.identity, to: "  工作账号  ")
+    try check(namedBook.accounts.first?.label == "工作账号" && namedBook.accounts.first?.hasCustomLabel == true,
+              "rename trims and marks a durable custom label")
+    namedBook.remember(refreshedEmailAuth)
+    try check(namedBook.accounts.first?.label == "工作账号",
+              "refresh never overwrites a user-defined label")
+    try rejects("empty custom label") { try namedBook.rename(identity: emailAuth.identity, to: "  ") }
+    try rejects("missing rename target") { try namedBook.rename(identity: "missing", to: "Name") }
+
+    var legacyObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(namedBook)) as! [String: Any]
+    var legacyAccounts = legacyObject["accounts"] as! [[String: Any]]
+    for index in legacyAccounts.indices { legacyAccounts[index].removeValue(forKey: "hasCustomLabel") }
+    legacyObject["accounts"] = legacyAccounts
+    let legacyBook = try JSONDecoder().decode(AccountBook.self,
+        from: JSONSerialization.data(withJSONObject: legacyObject))
+    try check(legacyBook.accounts.count == namedBook.accounts.count &&
+              legacyBook.accounts.allSatisfy { $0.hasCustomLabel == nil },
+              "keychain records created before custom labels remain decodable")
+
+    var removableBook = namedBook
+    let remainingAuth = removableBook.accounts.last!.auth
+    let activeAuthBeforeRemoval = try file.read()
+    try removableBook.remove(identity: emailAuth.identity)
+    try check(removableBook.accounts.count == 1 && removableBook.accounts[0].auth == remainingAuth,
+              "remove deletes only the selected backup")
+    try check(file.read() == activeAuthBeforeRemoval,
+              "removing a backup never changes the active auth file")
+    try rejects("missing removal target") { try removableBook.remove(identity: "missing") }
+
     var loginBook = AccountBook()
     let loggedIn = try AccountLogin.remember(emailAuth.data, expectedIdentity: nil, in: &loginBook)
     try check(loggedIn.label == "person@example.com", "isolated login is saved with its email")
