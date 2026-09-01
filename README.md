@@ -59,7 +59,7 @@
 
 `config/app.xcconfig` 是版本和最低系统要求的唯一配置来源：`MARKETING_VERSION`、`CURRENT_PROJECT_VERSION`、`MACOSX_DEPLOYMENT_TARGET`。`info.plist` 使用 Xcode 变量引用这些值，应用标识及可执行文件名保持原样。当前默认仍为 ad-hoc 临时签名，不要求 Apple 开发者账号，不代表已公证。
 
-图标源文件仍为 `assets/logo.svg`。工程的 **Generate SVG icon resources** 构建阶段运行 `scripts/generateIcons.swift`，生成 `.icns` 与菜单栏 PNG；声明输入／输出依赖，生成文件放在 Xcode 派生目录和应用资源目录，不提交 Git。应用的源码编译、资源目录及签名由 Xcode 负责，不再手动组装应用包。
+App 图标源文件为 `assets/logo.svg`，18／36px 菜单栏模板图标使用专门简化的 `assets/menuLogo.svg`。工程的 **Generate SVG icon resources** 构建阶段运行 `scripts/generateIcons.swift`，生成 `.icns` 与菜单栏 PNG；声明输入／输出依赖，生成文件放在 Xcode 派生目录和应用资源目录，不提交 Git。应用的源码编译、资源目录及签名由 Xcode 负责，不再手动组装应用包。
 
 命令行使用与 Xcode 相同的 Scheme（在仓库根目录执行）：
 

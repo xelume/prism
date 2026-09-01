@@ -1,17 +1,21 @@
 import AppKit
 
-guard CommandLine.arguments.count == 3 else {
-    fatalError("Usage: generateIcons <logo.svg> <output-directory>")
+guard CommandLine.arguments.count == 4 else {
+    fatalError("Usage: generateIcons <app-logo.svg> <menu-logo.svg> <output-directory>")
 }
-let source = URL(fileURLWithPath: CommandLine.arguments[1])
-let output = URL(fileURLWithPath: CommandLine.arguments[2])
-guard let logo = NSImage(contentsOf: source) else {
-    fatalError("Cannot load SVG logo")
+let appSource = URL(fileURLWithPath: CommandLine.arguments[1])
+let menuSource = URL(fileURLWithPath: CommandLine.arguments[2])
+let output = URL(fileURLWithPath: CommandLine.arguments[3])
+guard let appLogo = NSImage(contentsOf: appSource) else {
+    fatalError("Cannot load app SVG logo")
+}
+guard let menuLogo = NSImage(contentsOf: menuSource) else {
+    fatalError("Cannot load menu SVG logo")
 }
 let iconset = output.appendingPathComponent("appIcon.iconset")
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 
-func render(pixels: Int, appIcon: Bool) throws -> NSBitmapImageRep {
+func render(_ logo: NSImage, pixels: Int, appIcon: Bool) throws -> NSBitmapImageRep {
     guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil,
         pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8, samplesPerPixel: 4,
         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
@@ -51,14 +55,14 @@ func writePNG(_ bitmap: NSBitmapImageRep, to url: URL) throws {
 for points in [16, 32, 128, 256, 512] {
     for scale in [1, 2] {
         let suffix = scale == 2 ? "@2x" : ""
-        try writePNG(render(pixels: points * scale, appIcon: true),
+        try writePNG(render(appLogo, pixels: points * scale, appIcon: true),
             to: iconset.appendingPathComponent("icon_\(points)x\(points)\(suffix).png"))
     }
 }
 for scale in [1, 2] {
     let suffix = scale == 2 ? "@2x" : ""
-    try writePNG(render(pixels: 18 * scale, appIcon: false),
+    try writePNG(render(menuLogo, pixels: 18 * scale, appIcon: false),
                  to: output.appendingPathComponent("menuIcon\(suffix).png"))
 }
-try writePNG(render(pixels: 256, appIcon: true), to: output.appendingPathComponent("appIconPreview.png"))
-print("Generated app icon sizes 16–1024px and menu template sizes 18/36px from logo.svg")
+try writePNG(render(appLogo, pixels: 256, appIcon: true), to: output.appendingPathComponent("appIconPreview.png"))
+print("Generated app icon sizes 16–1024px and dedicated menu template sizes 18/36px")

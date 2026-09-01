@@ -1,23 +1,29 @@
 <svg width="256" height="256" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <title>星烁 Logo</title>
-  <desc>一颗圆润的八角主星与两颗错落闪光组成的星烁品牌标志。</desc>
+  <title>Prism by Xelume</title>
+  <desc>A soft, rounded Xelume star shaped by a blue-violet prism facet.</desc>
 
-  <!-- A filled eight-point star tuned on a 24dp optical grid. -->
+  <defs>
+    <linearGradient id="spectral-body" x1="3.5" y1="6" x2="20.5" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#55A0FF"/>
+      <stop offset="0.48" stop-color="#626CF7"/>
+      <stop offset="1" stop-color="#A85CF5"/>
+    </linearGradient>
+    <linearGradient id="soft-core" x1="9" y1="5" x2="15" y2="19" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8090FF" stop-opacity="0.88"/>
+      <stop offset="1" stop-color="#7058ED" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- The shorter rays and rounded joins retain Xelume without the weapon-like sharpness. -->
   <path
-    d="M11.5 3L12.88 8.67L15.74 7.76L14.83 10.62L20.5 12L14.83 13.38L15.74 16.24L12.88 15.33L11.5 21L10.12 15.33L7.26 16.24L8.17 13.38L2.5 12L8.17 10.62L7.26 7.76L10.12 8.67L11.5 3Z"
-    fill="currentColor"
-    stroke="currentColor"
-    stroke-width="0.72"
+    d="M12 3.6L13.35 8.55L16.45 7.55L15.45 10.65L20.4 12L15.45 13.35L16.45 16.45L13.35 15.45L12 20.4L10.65 15.45L7.55 16.45L8.55 13.35L3.6 12L8.55 10.65L7.55 7.55L10.65 8.55L12 3.6Z"
+    fill="url(#spectral-body)"
+    stroke="url(#spectral-body)"
+    stroke-width="1.05"
     stroke-linejoin="round"
   />
-
-  <!-- Two quiet glints give the mark a living, asymmetric sparkle. -->
   <path
-    d="M19.25 2.75C19.37 4.08 19.92 4.63 21.25 4.75C19.92 4.87 19.37 5.42 19.25 6.75C19.13 5.42 18.58 4.87 17.25 4.75C18.58 4.63 19.13 4.08 19.25 2.75Z"
-    fill="currentColor"
-  />
-  <path
-    d="M4.25 17.25C4.36 18.46 4.79 18.89 6 19C4.79 19.11 4.36 19.54 4.25 20.75C4.14 19.54 3.71 19.11 2.5 19C3.71 18.89 4.14 18.46 4.25 17.25Z"
-    fill="currentColor"
+    d="M12 4.4C12.9 7.6 14.1 10.1 15.65 12C14.1 13.9 12.9 16.4 12 19.6C11.1 16.4 9.9 13.9 8.35 12C9.9 10.1 11.1 7.6 12 4.4Z"
+    fill="url(#soft-core)"
   />
 </svg>

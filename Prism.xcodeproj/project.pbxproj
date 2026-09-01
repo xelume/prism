@@ -85,6 +85,7 @@
 		B7AC7CE39F42D06921AEC2CF /* usageMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = usageMonitor.swift; sourceTree = "<group>"; };
 		BE9CAC8AD48690F4A998059E /* updatePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = updatePolicy.swift; sourceTree = "<group>"; };
 		C30298BE887D378466946563 /* logo.svg */ = {isa = PBXFileReference; lastKnownFileType = image.svg; path = logo.svg; sourceTree = "<group>"; };
+		C30298BE887D378466946564 /* menuLogo.svg */ = {isa = PBXFileReference; lastKnownFileType = image.svg; path = menuLogo.svg; sourceTree = "<group>"; };
 		C599F654CD40A674A397ECB3 /* app.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = app.xcconfig; sourceTree = "<group>"; };
 		D7573C4D0C061D86F7813BB9 /* generateIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = generateIcons.swift; sourceTree = "<group>"; };
 		E627708161375C0D8AC434EC /* usageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = usageTests.swift; sourceTree = "<group>"; };
@@ -174,6 +175,7 @@
 			isa = PBXGroup;
 			children = (
 				C30298BE887D378466946563 /* logo.svg */,
+				C30298BE887D378466946564 /* menuLogo.svg */,
 				40DD6ABD9CFF084AE6A86880 /* sparkleLicense.txt */,
 			);
 			path = assets;
@@ -308,6 +310,7 @@
 			);
 			inputPaths = (
 				"$(SRCROOT)/assets/logo.svg",
+				"$(SRCROOT)/assets/menuLogo.svg",
 				"$(SRCROOT)/scripts/generateIcons.swift",
 			);
 			name = "Generate SVG icon resources";
@@ -318,7 +321,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "set -euo pipefail\nmkdir -p \"$DERIVED_FILE_DIR/iconModuleCache\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nxcrun swift -module-cache-path \"$DERIVED_FILE_DIR/iconModuleCache\" \"$SRCROOT/scripts/generateIcons.swift\" \"$SRCROOT/assets/logo.svg\" \"$DERIVED_FILE_DIR/icons\"\nxcrun iconutil -c icns \"$DERIVED_FILE_DIR/icons/appIcon.iconset\" -o \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/appIcon.icns\"\ncp \"$DERIVED_FILE_DIR/icons/menuIcon.png\" \"$DERIVED_FILE_DIR/icons/menuIcon@2x.png\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/\"\n";
+			shellScript = "set -euo pipefail\nmkdir -p \"$DERIVED_FILE_DIR/iconModuleCache\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nxcrun swift -module-cache-path \"$DERIVED_FILE_DIR/iconModuleCache\" \"$SRCROOT/scripts/generateIcons.swift\" \"$SRCROOT/assets/logo.svg\" \"$SRCROOT/assets/menuLogo.svg\" \"$DERIVED_FILE_DIR/icons\"\nxcrun iconutil -c icns \"$DERIVED_FILE_DIR/icons/appIcon.iconset\" -o \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/appIcon.icns\"\ncp \"$DERIVED_FILE_DIR/icons/menuIcon.png\" \"$DERIVED_FILE_DIR/icons/menuIcon@2x.png\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
