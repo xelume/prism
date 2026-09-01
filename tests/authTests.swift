@@ -41,6 +41,26 @@ func runTests() throws {
     try check(DirectKeychainAuthStore(home: URL(fileURLWithPath: "/Users/test/.codex"),
         allowInteraction: false).account == "cli|d446e73b91d0fe9e",
         "direct keychain account matches Codex CODEX_HOME hashing")
+    let expectedAccount = "cli|d446e73b91d0fe9e"
+    let desktopAccount = "cli|0123456789abcdef"
+    try check(try selectCodexKeychain(expected: expectedAccount, discovered: []) == .file,
+              "no Direct Keyring item falls back to file")
+    try check(try selectCodexKeychain(expected: expectedAccount,
+        discovered: [desktopAccount]) == .direct(account: desktopAccount),
+        "one official Direct Keyring account supports the desktop client's internal home")
+    try check(try selectCodexKeychain(expected: expectedAccount,
+        discovered: [desktopAccount, desktopAccount]) == .direct(account: desktopAccount),
+        "duplicate keychain metadata does not create ambiguity")
+    try check(try selectCodexKeychain(expected: expectedAccount,
+        discovered: [desktopAccount, expectedAccount]) == .direct(account: expectedAccount),
+        "the default CODEX_HOME account wins when present")
+    try rejects("multiple Direct Keyring accounts") {
+        _ = try selectCodexKeychain(expected: expectedAccount,
+            discovered: [desktopAccount, "cli|fedcba9876543210"])
+    }
+    try rejects("unknown Codex keychain layout") {
+        _ = try selectCodexKeychain(expected: expectedAccount, discovered: ["CODEX_AUTH"])
+    }
 
     let manager = FileManager.default
     let root = manager.temporaryDirectory.resolvingSymlinksInPath()

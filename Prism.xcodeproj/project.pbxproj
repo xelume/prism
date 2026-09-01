@@ -1,748 +1,630 @@
 // !$*UTF8*$!
 {
-	"archiveVersion" = "1";
-	"classes" = {
+	archiveVersion = 1;
+	classes = {
 	};
-	"objectVersion" = "56";
-	"objects" = {
-		"4D651D5DCE72EE4517B77C83" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "accountUsage.swift";
-			"sourceTree" = "<group>";
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		09AE2CDF039117CAB20198B5 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8AE94C94DD89B016C1DAD4 /* main.swift */; };
+		114204DD21DC82015AEE6134 /* updatePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9CAC8AD48690F4A998059E /* updatePolicy.swift */; };
+		1C76487083BF2BB550C90AB1 /* aboutWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A77D6BAD8F1B72AB455A18A /* aboutWindow.swift */; };
+		251FB4DB5AED851570D83A71 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 705BB44805921CCAF962869D /* Sparkle */; };
+		2653034CBD2623B56CFCC230 /* processControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F645B7952C137A0B8728700 /* processControl.swift */; };
+		26FBA7F24836E6B06A378551 /* accountUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D651D5DCE72EE4517B77C83 /* accountUsage.swift */; };
+		320FA5099378430FCA7A1F1B /* macRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60E0D28B3B1B40A7859F69EB /* macRuntime.swift */; };
+		3A4D93258E3D9D337F26489C /* processControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F645B7952C137A0B8728700 /* processControl.swift */; };
+		4052275FE107F6A37AE3A384 /* shutdownFixture.c in Sources */ = {isa = PBXBuildFile; fileRef = 8B24AEDF99B55F8B5FE2722F /* shutdownFixture.c */; };
+		45E72CE567E8183E2E0ACA6E /* usageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E627708161375C0D8AC434EC /* usageTests.swift */; };
+		4DC84B5145CAF3F1E485CDFE /* accountUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D651D5DCE72EE4517B77C83 /* accountUsage.swift */; };
+		513740E0625A6B74887A084F /* authStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7787286C8013A1BF21F48D0A /* authStore.swift */; };
+		5B9F025BEF2A6D7019B79D31 /* clientShutdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21615A4C4ED26399B0E912FB /* clientShutdown.swift */; };
+		6424C327B728EDA9DFA7A568 /* shutdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CBE67D9470E394B09CBCAF /* shutdownTests.swift */; };
+		6D0E8789C33E341080B9485F /* updatePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9CAC8AD48690F4A998059E /* updatePolicy.swift */; };
+		717DE27F38DDDF5A072673F6 /* authTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12E827CA5C62E89BE372D55B /* authTests.swift */; };
+		7563FD27FDB25D04D45ECBE7 /* macRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60E0D28B3B1B40A7859F69EB /* macRuntime.swift */; };
+		A6270F685F667C99C1FFA37F /* appUpdates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9380E9A45E5CE9F461B4AB58 /* appUpdates.swift */; };
+		AB625330EA38C1EC5FA61932 /* usageMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7AC7CE39F42D06921AEC2CF /* usageMonitor.swift */; };
+		AC7609CFC3341CFD401BE425 /* menuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98E8E23529E12A572BBC5EF /* menuApp.swift */; };
+		BD9931DFA76FFF429E6BD678 /* clientShutdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21615A4C4ED26399B0E912FB /* clientShutdown.swift */; };
+		C180266C84CEC8D8B0380132 /* regressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F10141AD29CEFCF91017FB /* regressionTests.swift */; };
+		C5C60E825BEDFD5EC6E772C5 /* codex-shutdown-fixture in Embed disposable process fixture */ = {isa = PBXBuildFile; fileRef = 04A8572B6184C2B4B0D58127 /* codex-shutdown-fixture */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		C5E8881C7C91085D5EEE8AC3 /* sparkleLicense.txt in Resources */ = {isa = PBXBuildFile; fileRef = 40DD6ABD9CFF084AE6A86880 /* sparkleLicense.txt */; };
+		CA35C4432598ECEF02DA29CC /* usageMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7AC7CE39F42D06921AEC2CF /* usageMonitor.swift */; };
+		F460C03D0DDD0C1D50E93C0F /* updateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAE87468699F4028786E423 /* updateTests.swift */; };
+		F6D9E0730822984AA0B92EB2 /* authStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7787286C8013A1BF21F48D0A /* authStore.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5185CBDBD2D17844E74DF6D2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 244210E48437B6556980A702 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2E53368AE3531F4D7FFA75B2;
+			remoteInfo = ShutdownFixture;
 		};
-		"7787286C8013A1BF21F48D0A" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "authStore.swift";
-			"sourceTree" = "<group>";
-		};
-		"21615A4C4ED26399B0E912FB" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "clientShutdown.swift";
-			"sourceTree" = "<group>";
-		};
-		"60E0D28B3B1B40A7859F69EB" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "macRuntime.swift";
-			"sourceTree" = "<group>";
-		};
-		"7B8AE94C94DD89B016C1DAD4" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "main.swift";
-			"sourceTree" = "<group>";
-		};
-		"A98E8E23529E12A572BBC5EF" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "menuApp.swift";
-			"sourceTree" = "<group>";
-		};
-		"2F645B7952C137A0B8728700" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "processControl.swift";
-			"sourceTree" = "<group>";
-		};
-		"B7AC7CE39F42D06921AEC2CF" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "usageMonitor.swift";
-			"sourceTree" = "<group>";
-		};
-		"12E827CA5C62E89BE372D55B" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "authTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"11F10141AD29CEFCF91017FB" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "regressionTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"8B24AEDF99B55F8B5FE2722F" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.c.c";
-			"path" = "shutdownFixture.c";
-			"sourceTree" = "<group>";
-		};
-		"81CBE67D9470E394B09CBCAF" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "shutdownTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"E627708161375C0D8AC434EC" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "usageTests.swift";
-			"sourceTree" = "<group>";
-		};
-		"B29B475986CA32BA72A093AB" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text.script.sh";
-			"path" = "createDmg.sh";
-			"sourceTree" = "<group>";
-		};
-		"D7573C4D0C061D86F7813BB9" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "generateIcons.swift";
-			"sourceTree" = "<group>";
-		};
-		"3778C74A369774463A84DDC5" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text.script.sh";
-			"path" = "packageRelease.sh";
-			"sourceTree" = "<group>";
-		};
-		"C30298BE887D378466946563" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "image.svg";
-			"path" = "logo.svg";
-			"sourceTree" = "<group>";
-		};
-		"C599F654CD40A674A397ECB3" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text.xcconfig";
-			"path" = "app.xcconfig";
-			"sourceTree" = "<group>";
-		};
-		"EFD89C7E1B84EAD505E6F3CB" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text.plist.xml";
-			"path" = "info.plist";
-			"sourceTree" = "<group>";
-		};
-		"42C59AF8A4BAE559BC5A5D5D" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "net.daringfireball.markdown";
-			"path" = "README.md";
-			"sourceTree" = "<group>";
-		};
-		"81F31879437340D5CD6ED968" = {
-			"isa" = "PBXFileReference";
-			"explicitFileType" = "wrapper.application";
-			"includeInIndex" = "0";
-			"path" = "Prism.app";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"70F09BF32F6D77A92FF191B4" = {
-			"isa" = "PBXFileReference";
-			"explicitFileType" = "wrapper.cfbundle";
-			"includeInIndex" = "0";
-			"path" = "PrismTests.xctest";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"04A8572B6184C2B4B0D58127" = {
-			"isa" = "PBXFileReference";
-			"explicitFileType" = "compiled.mach-o.executable";
-			"includeInIndex" = "0";
-			"path" = "codex-shutdown-fixture";
-			"sourceTree" = "BUILT_PRODUCTS_DIR";
-		};
-		"596B73E0DA7F040AAF99B86E" = {
-			"isa" = "PBXGroup";
-			"children" = (
-				"4D651D5DCE72EE4517B77C83",
-				"7787286C8013A1BF21F48D0A",
-				"21615A4C4ED26399B0E912FB",
-				"60E0D28B3B1B40A7859F69EB",
-				"7B8AE94C94DD89B016C1DAD4",
-				"A98E8E23529E12A572BBC5EF",
-				"2F645B7952C137A0B8728700",
-				"B7AC7CE39F42D06921AEC2CF",
-				"9380E9A45E5CE9F461B4AB58",
-				"9A77D6BAD8F1B72AB455A18A",
-				"BE9CAC8AD48690F4A998059E",
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		EA7D87BA869FFEF9B34CDDE2 /* Embed disposable process fixture */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 7;
+			files = (
+				C5C60E825BEDFD5EC6E772C5 /* codex-shutdown-fixture in Embed disposable process fixture */,
 			);
-			"path" = "sources";
-			"sourceTree" = "<group>";
+			name = "Embed disposable process fixture";
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"D60409337774CCE94860379A" = {
-			"isa" = "PBXGroup";
-			"children" = (
-				"12E827CA5C62E89BE372D55B",
-				"11F10141AD29CEFCF91017FB",
-				"8B24AEDF99B55F8B5FE2722F",
-				"81CBE67D9470E394B09CBCAF",
-				"E627708161375C0D8AC434EC",
-				"6CAE87468699F4028786E423",
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		04A8572B6184C2B4B0D58127 /* codex-shutdown-fixture */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "codex-shutdown-fixture"; sourceTree = BUILT_PRODUCTS_DIR; };
+		11F10141AD29CEFCF91017FB /* regressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = regressionTests.swift; sourceTree = "<group>"; };
+		12E827CA5C62E89BE372D55B /* authTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = authTests.swift; sourceTree = "<group>"; };
+		21615A4C4ED26399B0E912FB /* clientShutdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = clientShutdown.swift; sourceTree = "<group>"; };
+		2F645B7952C137A0B8728700 /* processControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = processControl.swift; sourceTree = "<group>"; };
+		3778C74A369774463A84DDC5 /* packageRelease.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = packageRelease.sh; sourceTree = "<group>"; };
+		40DD6ABD9CFF084AE6A86880 /* sparkleLicense.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = sparkleLicense.txt; sourceTree = "<group>"; };
+		42C59AF8A4BAE559BC5A5D5D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		4D651D5DCE72EE4517B77C83 /* accountUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = accountUsage.swift; sourceTree = "<group>"; };
+		60E0D28B3B1B40A7859F69EB /* macRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macRuntime.swift; sourceTree = "<group>"; };
+		6CAE87468699F4028786E423 /* updateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = updateTests.swift; sourceTree = "<group>"; };
+		70F09BF32F6D77A92FF191B4 /* PrismTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PrismTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7787286C8013A1BF21F48D0A /* authStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = authStore.swift; sourceTree = "<group>"; };
+		7B8AE94C94DD89B016C1DAD4 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		81CBE67D9470E394B09CBCAF /* shutdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shutdownTests.swift; sourceTree = "<group>"; };
+		81F31879437340D5CD6ED968 /* Prism.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Prism.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8B24AEDF99B55F8B5FE2722F /* shutdownFixture.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = shutdownFixture.c; sourceTree = "<group>"; };
+		9380E9A45E5CE9F461B4AB58 /* appUpdates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = appUpdates.swift; sourceTree = "<group>"; };
+		9A77D6BAD8F1B72AB455A18A /* aboutWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = aboutWindow.swift; sourceTree = "<group>"; };
+		A98E8E23529E12A572BBC5EF /* menuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = menuApp.swift; sourceTree = "<group>"; };
+		B29B475986CA32BA72A093AB /* createDmg.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = createDmg.sh; sourceTree = "<group>"; };
+		B7AC7CE39F42D06921AEC2CF /* usageMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = usageMonitor.swift; sourceTree = "<group>"; };
+		BE9CAC8AD48690F4A998059E /* updatePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = updatePolicy.swift; sourceTree = "<group>"; };
+		C30298BE887D378466946563 /* logo.svg */ = {isa = PBXFileReference; lastKnownFileType = image.svg; path = logo.svg; sourceTree = "<group>"; };
+		C599F654CD40A674A397ECB3 /* app.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = app.xcconfig; sourceTree = "<group>"; };
+		D7573C4D0C061D86F7813BB9 /* generateIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = generateIcons.swift; sourceTree = "<group>"; };
+		E627708161375C0D8AC434EC /* usageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = usageTests.swift; sourceTree = "<group>"; };
+		EFD89C7E1B84EAD505E6F3CB /* info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		28557525D9B40FEE6754FB60 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
-			"path" = "tests";
-			"sourceTree" = "<group>";
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"AE6ADACDDE846FF6AA0A8B4A" = {
-			"isa" = "PBXGroup";
-			"children" = (
-				"C30298BE887D378466946563",
-				"40DD6ABD9CFF084AE6A86880",
+		91024282FFD499F5807DB5BC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				251FB4DB5AED851570D83A71 /* Sparkle in Frameworks */,
 			);
-			"path" = "assets";
-			"sourceTree" = "<group>";
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"54B3F0C1B29408117926A317" = {
-			"isa" = "PBXGroup";
-			"children" = (
-				"B29B475986CA32BA72A093AB",
-				"D7573C4D0C061D86F7813BB9",
-				"3778C74A369774463A84DDC5",
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0035FE99EA2940F7FA633A58 = {
+			isa = PBXGroup;
+			children = (
+				596B73E0DA7F040AAF99B86E /* sources */,
+				D60409337774CCE94860379A /* tests */,
+				AE6ADACDDE846FF6AA0A8B4A /* assets */,
+				54B3F0C1B29408117926A317 /* scripts */,
+				9B559F57AE78FD64C82512FA /* config */,
+				EFD89C7E1B84EAD505E6F3CB /* info.plist */,
+				42C59AF8A4BAE559BC5A5D5D /* README.md */,
+				0A3E27B8CA818264D75C8D81 /* Products */,
 			);
-			"path" = "scripts";
-			"sourceTree" = "<group>";
+			sourceTree = "<group>";
 		};
-		"9B559F57AE78FD64C82512FA" = {
-			"isa" = "PBXGroup";
-			"children" = (
-				"C599F654CD40A674A397ECB3",
+		0A3E27B8CA818264D75C8D81 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				81F31879437340D5CD6ED968 /* Prism.app */,
+				70F09BF32F6D77A92FF191B4 /* PrismTests.xctest */,
+				04A8572B6184C2B4B0D58127 /* codex-shutdown-fixture */,
 			);
-			"path" = "config";
-			"sourceTree" = "<group>";
+			name = Products;
+			sourceTree = "<group>";
 		};
-		"0A3E27B8CA818264D75C8D81" = {
-			"isa" = "PBXGroup";
-			"children" = (
-				"81F31879437340D5CD6ED968",
-				"70F09BF32F6D77A92FF191B4",
-				"04A8572B6184C2B4B0D58127",
+		54B3F0C1B29408117926A317 /* scripts */ = {
+			isa = PBXGroup;
+			children = (
+				B29B475986CA32BA72A093AB /* createDmg.sh */,
+				D7573C4D0C061D86F7813BB9 /* generateIcons.swift */,
+				3778C74A369774463A84DDC5 /* packageRelease.sh */,
 			);
-			"name" = "Products";
-			"sourceTree" = "<group>";
+			path = scripts;
+			sourceTree = "<group>";
 		};
-		"0035FE99EA2940F7FA633A58" = {
-			"isa" = "PBXGroup";
-			"children" = (
-				"596B73E0DA7F040AAF99B86E",
-				"D60409337774CCE94860379A",
-				"AE6ADACDDE846FF6AA0A8B4A",
-				"54B3F0C1B29408117926A317",
-				"9B559F57AE78FD64C82512FA",
-				"EFD89C7E1B84EAD505E6F3CB",
-				"42C59AF8A4BAE559BC5A5D5D",
-				"0A3E27B8CA818264D75C8D81",
+		596B73E0DA7F040AAF99B86E /* sources */ = {
+			isa = PBXGroup;
+			children = (
+				4D651D5DCE72EE4517B77C83 /* accountUsage.swift */,
+				7787286C8013A1BF21F48D0A /* authStore.swift */,
+				21615A4C4ED26399B0E912FB /* clientShutdown.swift */,
+				60E0D28B3B1B40A7859F69EB /* macRuntime.swift */,
+				7B8AE94C94DD89B016C1DAD4 /* main.swift */,
+				A98E8E23529E12A572BBC5EF /* menuApp.swift */,
+				2F645B7952C137A0B8728700 /* processControl.swift */,
+				B7AC7CE39F42D06921AEC2CF /* usageMonitor.swift */,
+				9380E9A45E5CE9F461B4AB58 /* appUpdates.swift */,
+				9A77D6BAD8F1B72AB455A18A /* aboutWindow.swift */,
+				BE9CAC8AD48690F4A998059E /* updatePolicy.swift */,
 			);
-			"sourceTree" = "<group>";
+			path = sources;
+			sourceTree = "<group>";
 		};
-		"26FBA7F24836E6B06A378551" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "4D651D5DCE72EE4517B77C83";
-		};
-		"513740E0625A6B74887A084F" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "7787286C8013A1BF21F48D0A";
-		};
-		"5B9F025BEF2A6D7019B79D31" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "21615A4C4ED26399B0E912FB";
-		};
-		"7563FD27FDB25D04D45ECBE7" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "60E0D28B3B1B40A7859F69EB";
-		};
-		"09AE2CDF039117CAB20198B5" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "7B8AE94C94DD89B016C1DAD4";
-		};
-		"AC7609CFC3341CFD401BE425" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "A98E8E23529E12A572BBC5EF";
-		};
-		"2653034CBD2623B56CFCC230" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "2F645B7952C137A0B8728700";
-		};
-		"AB625330EA38C1EC5FA61932" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "B7AC7CE39F42D06921AEC2CF";
-		};
-		"D8AFF257B45D0C513672EC45" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = (
-				"26FBA7F24836E6B06A378551",
-				"513740E0625A6B74887A084F",
-				"5B9F025BEF2A6D7019B79D31",
-				"7563FD27FDB25D04D45ECBE7",
-				"09AE2CDF039117CAB20198B5",
-				"AC7609CFC3341CFD401BE425",
-				"2653034CBD2623B56CFCC230",
-				"AB625330EA38C1EC5FA61932",
-				"A6270F685F667C99C1FFA37F",
-				"1C76487083BF2BB550C90AB1",
-				"114204DD21DC82015AEE6134",
+		9B559F57AE78FD64C82512FA /* config */ = {
+			isa = PBXGroup;
+			children = (
+				C599F654CD40A674A397ECB3 /* app.xcconfig */,
 			);
-			"runOnlyForDeploymentPostprocessing" = "0";
+			path = config;
+			sourceTree = "<group>";
 		};
-		"4DC84B5145CAF3F1E485CDFE" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "4D651D5DCE72EE4517B77C83";
-		};
-		"F6D9E0730822984AA0B92EB2" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "7787286C8013A1BF21F48D0A";
-		};
-		"BD9931DFA76FFF429E6BD678" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "21615A4C4ED26399B0E912FB";
-		};
-		"320FA5099378430FCA7A1F1B" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "60E0D28B3B1B40A7859F69EB";
-		};
-		"3A4D93258E3D9D337F26489C" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "2F645B7952C137A0B8728700";
-		};
-		"CA35C4432598ECEF02DA29CC" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "B7AC7CE39F42D06921AEC2CF";
-		};
-		"717DE27F38DDDF5A072673F6" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "12E827CA5C62E89BE372D55B";
-		};
-		"C180266C84CEC8D8B0380132" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "11F10141AD29CEFCF91017FB";
-		};
-		"6424C327B728EDA9DFA7A568" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "81CBE67D9470E394B09CBCAF";
-		};
-		"45E72CE567E8183E2E0ACA6E" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "E627708161375C0D8AC434EC";
-		};
-		"B2298129A58493C45A5D7D9A" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = (
-				"4DC84B5145CAF3F1E485CDFE",
-				"F6D9E0730822984AA0B92EB2",
-				"BD9931DFA76FFF429E6BD678",
-				"320FA5099378430FCA7A1F1B",
-				"3A4D93258E3D9D337F26489C",
-				"CA35C4432598ECEF02DA29CC",
-				"717DE27F38DDDF5A072673F6",
-				"C180266C84CEC8D8B0380132",
-				"6424C327B728EDA9DFA7A568",
-				"45E72CE567E8183E2E0ACA6E",
-				"6D0E8789C33E341080B9485F",
-				"F460C03D0DDD0C1D50E93C0F",
+		AE6ADACDDE846FF6AA0A8B4A /* assets */ = {
+			isa = PBXGroup;
+			children = (
+				C30298BE887D378466946563 /* logo.svg */,
+				40DD6ABD9CFF084AE6A86880 /* sparkleLicense.txt */,
 			);
-			"runOnlyForDeploymentPostprocessing" = "0";
+			path = assets;
+			sourceTree = "<group>";
 		};
-		"4052275FE107F6A37AE3A384" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "8B24AEDF99B55F8B5FE2722F";
-		};
-		"3312DDF7A31BCFA7DFAEA0F2" = {
-			"isa" = "PBXSourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = (
-				"4052275FE107F6A37AE3A384",
+		D60409337774CCE94860379A /* tests */ = {
+			isa = PBXGroup;
+			children = (
+				12E827CA5C62E89BE372D55B /* authTests.swift */,
+				11F10141AD29CEFCF91017FB /* regressionTests.swift */,
+				8B24AEDF99B55F8B5FE2722F /* shutdownFixture.c */,
+				81CBE67D9470E394B09CBCAF /* shutdownTests.swift */,
+				E627708161375C0D8AC434EC /* usageTests.swift */,
+				6CAE87468699F4028786E423 /* updateTests.swift */,
 			);
-			"runOnlyForDeploymentPostprocessing" = "0";
+			path = tests;
+			sourceTree = "<group>";
 		};
-		"91024282FFD499F5807DB5BC" = {
-			"isa" = "PBXFrameworksBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = (
-				"251FB4DB5AED851570D83A71",
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2ADDEE89B29C55E11126D89F /* PrismTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3AC24B37B5C6634D049790CE /* Build configuration list for PBXNativeTarget "PrismTests" */;
+			buildPhases = (
+				B2298129A58493C45A5D7D9A /* Sources */,
+				28557525D9B40FEE6754FB60 /* Frameworks */,
+				3F6BC17F79ADBDD97FB52430 /* Resources */,
+				EA7D87BA869FFEF9B34CDDE2 /* Embed disposable process fixture */,
 			);
-			"runOnlyForDeploymentPostprocessing" = "0";
+			buildRules = (
+			);
+			dependencies = (
+				47A0E70BB880F8163377E442 /* PBXTargetDependency */,
+			);
+			name = PrismTests;
+			productName = PrismTests;
+			productReference = 70F09BF32F6D77A92FF191B4 /* PrismTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		"28557525D9B40FEE6754FB60" = {
-			"isa" = "PBXFrameworksBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = (
+		2E53368AE3531F4D7FFA75B2 /* ShutdownFixture */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 63C23731268756009E2F6B24 /* Build configuration list for PBXNativeTarget "ShutdownFixture" */;
+			buildPhases = (
+				3312DDF7A31BCFA7DFAEA0F2 /* Sources */,
 			);
-			"runOnlyForDeploymentPostprocessing" = "0";
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShutdownFixture;
+			productName = "codex-shutdown-fixture";
+			productReference = 04A8572B6184C2B4B0D58127 /* codex-shutdown-fixture */;
+			productType = "com.apple.product-type.tool";
 		};
-		"DC549ACCB7C726C62ECFD4E2" = {
-			"isa" = "PBXResourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = (
-				"C5E8881C7C91085D5EEE8AC3",
+		8C1A045E96B998B40533C7FF /* Prism */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7FA7C6DD60DC323C7F3FA76C /* Build configuration list for PBXNativeTarget "Prism" */;
+			buildPhases = (
+				D8AFF257B45D0C513672EC45 /* Sources */,
+				91024282FFD499F5807DB5BC /* Frameworks */,
+				DC549ACCB7C726C62ECFD4E2 /* Resources */,
+				D9843D68421ECB408EB51EB8 /* Generate SVG icon resources */,
 			);
-			"runOnlyForDeploymentPostprocessing" = "0";
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Prism;
+			packageProductDependencies = (
+				705BB44805921CCAF962869D /* Sparkle */,
+			);
+			productName = Prism;
+			productReference = 81F31879437340D5CD6ED968 /* Prism.app */;
+			productType = "com.apple.product-type.application";
 		};
-		"3F6BC17F79ADBDD97FB52430" = {
-			"isa" = "PBXResourcesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = (
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		244210E48437B6556980A702 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2660;
+			};
+			buildConfigurationList = 1922B098E983995960BE56B0 /* Build configuration list for PBXProject "Prism" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
 			);
-			"runOnlyForDeploymentPostprocessing" = "0";
+			mainGroup = 0035FE99EA2940F7FA633A58;
+			packageReferences = (
+				D3A8FAEEE9147FE9F96106D4 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
+			productRefGroup = 0A3E27B8CA818264D75C8D81 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8C1A045E96B998B40533C7FF /* Prism */,
+				2ADDEE89B29C55E11126D89F /* PrismTests */,
+				2E53368AE3531F4D7FFA75B2 /* ShutdownFixture */,
+			);
 		};
-		"D9843D68421ECB408EB51EB8" = {
-			"isa" = "PBXShellScriptBuildPhase";
-			"buildActionMask" = "2147483647";
-			"files" = (
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3F6BC17F79ADBDD97FB52430 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
-			"inputPaths" = (
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DC549ACCB7C726C62ECFD4E2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C5E8881C7C91085D5EEE8AC3 /* sparkleLicense.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		D9843D68421ECB408EB51EB8 /* Generate SVG icon resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
 				"$(SRCROOT)/assets/logo.svg",
 				"$(SRCROOT)/scripts/generateIcons.swift",
 			);
-			"name" = "Generate SVG icon resources";
-			"outputPaths" = (
+			name = "Generate SVG icon resources";
+			outputPaths = (
 				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/appIcon.icns",
 				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/menuIcon.png",
 				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/menuIcon@2x.png",
 			);
-			"runOnlyForDeploymentPostprocessing" = "0";
-			"shellPath" = "/bin/bash";
-			"shellScript" = "set -euo pipefail\nmkdir -p \"$DERIVED_FILE_DIR/iconModuleCache\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nxcrun swift -module-cache-path \"$DERIVED_FILE_DIR/iconModuleCache\" \"$SRCROOT/scripts/generateIcons.swift\" \"$SRCROOT/assets/logo.svg\" \"$DERIVED_FILE_DIR/icons\"\nxcrun iconutil -c icns \"$DERIVED_FILE_DIR/icons/appIcon.iconset\" -o \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/appIcon.icns\"\ncp \"$DERIVED_FILE_DIR/icons/menuIcon.png\" \"$DERIVED_FILE_DIR/icons/menuIcon@2x.png\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/\"\n";
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "set -euo pipefail\nmkdir -p \"$DERIVED_FILE_DIR/iconModuleCache\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nxcrun swift -module-cache-path \"$DERIVED_FILE_DIR/iconModuleCache\" \"$SRCROOT/scripts/generateIcons.swift\" \"$SRCROOT/assets/logo.svg\" \"$DERIVED_FILE_DIR/icons\"\nxcrun iconutil -c icns \"$DERIVED_FILE_DIR/icons/appIcon.iconset\" -o \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/appIcon.icns\"\ncp \"$DERIVED_FILE_DIR/icons/menuIcon.png\" \"$DERIVED_FILE_DIR/icons/menuIcon@2x.png\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/\"\n";
 		};
-		"C5C60E825BEDFD5EC6E772C5" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "04A8572B6184C2B4B0D58127";
-			"settings" = {
-				"ATTRIBUTES" = (
-					"CodeSignOnCopy",
-				);
-			};
-		};
-		"EA7D87BA869FFEF9B34CDDE2" = {
-			"isa" = "PBXCopyFilesBuildPhase";
-			"buildActionMask" = "2147483647";
-			"dstPath" = "";
-			"dstSubfolderSpec" = "7";
-			"files" = (
-				"C5C60E825BEDFD5EC6E772C5",
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3312DDF7A31BCFA7DFAEA0F2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4052275FE107F6A37AE3A384 /* shutdownFixture.c in Sources */,
 			);
-			"name" = "Embed disposable process fixture";
-			"runOnlyForDeploymentPostprocessing" = "0";
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"5185CBDBD2D17844E74DF6D2" = {
-			"isa" = "PBXContainerItemProxy";
-			"containerPortal" = "244210E48437B6556980A702";
-			"proxyType" = "1";
-			"remoteGlobalIDString" = "2E53368AE3531F4D7FFA75B2";
-			"remoteInfo" = "ShutdownFixture";
-		};
-		"47A0E70BB880F8163377E442" = {
-			"isa" = "PBXTargetDependency";
-			"target" = "2E53368AE3531F4D7FFA75B2";
-			"targetProxy" = "5185CBDBD2D17844E74DF6D2";
-		};
-		"FDD3EA28A0B1309668A442B2" = {
-			"isa" = "XCBuildConfiguration";
-			"buildSettings" = {
-				"CLANG_ENABLE_MODULES" = "YES";
-				"CLANG_ENABLE_OBJC_ARC" = "YES";
-				"GCC_C_LANGUAGE_STANDARD" = "gnu17";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"SUPPORTED_PLATFORMS" = "macosx";
-				"SWIFT_EMIT_LOC_STRINGS" = "NO";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
-				"GCC_OPTIMIZATION_LEVEL" = "0";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf";
-				"ENABLE_TESTABILITY" = "YES";
-				"ONLY_ACTIVE_ARCH" = "YES";
-			};
-			"name" = "Debug";
-			"baseConfigurationReference" = "C599F654CD40A674A397ECB3";
-		};
-		"8DB23D5B0AA80A48AA651830" = {
-			"isa" = "XCBuildConfiguration";
-			"buildSettings" = {
-				"CLANG_ENABLE_MODULES" = "YES";
-				"CLANG_ENABLE_OBJC_ARC" = "YES";
-				"GCC_C_LANGUAGE_STANDARD" = "gnu17";
-				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
-				"SUPPORTED_PLATFORMS" = "macosx";
-				"SWIFT_EMIT_LOC_STRINGS" = "NO";
-				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
-				"GCC_OPTIMIZATION_LEVEL" = "s";
-				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
-				"ENABLE_TESTABILITY" = "NO";
-				"ONLY_ACTIVE_ARCH" = "NO";
-			};
-			"name" = "Release";
-			"baseConfigurationReference" = "C599F654CD40A674A397ECB3";
-		};
-		"1922B098E983995960BE56B0" = {
-			"isa" = "XCConfigurationList";
-			"buildConfigurations" = (
-				"FDD3EA28A0B1309668A442B2",
-				"8DB23D5B0AA80A48AA651830",
+		B2298129A58493C45A5D7D9A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4DC84B5145CAF3F1E485CDFE /* accountUsage.swift in Sources */,
+				F6D9E0730822984AA0B92EB2 /* authStore.swift in Sources */,
+				BD9931DFA76FFF429E6BD678 /* clientShutdown.swift in Sources */,
+				320FA5099378430FCA7A1F1B /* macRuntime.swift in Sources */,
+				3A4D93258E3D9D337F26489C /* processControl.swift in Sources */,
+				CA35C4432598ECEF02DA29CC /* usageMonitor.swift in Sources */,
+				717DE27F38DDDF5A072673F6 /* authTests.swift in Sources */,
+				C180266C84CEC8D8B0380132 /* regressionTests.swift in Sources */,
+				6424C327B728EDA9DFA7A568 /* shutdownTests.swift in Sources */,
+				45E72CE567E8183E2E0ACA6E /* usageTests.swift in Sources */,
+				6D0E8789C33E341080B9485F /* updatePolicy.swift in Sources */,
+				F460C03D0DDD0C1D50E93C0F /* updateTests.swift in Sources */,
 			);
-			"defaultConfigurationIsVisible" = "0";
-			"defaultConfigurationName" = "Release";
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"AB00255049ED0D95F2F0606D" = {
-			"isa" = "XCBuildConfiguration";
-			"buildSettings" = {
-				"PRODUCT_NAME" = "Prism";
-				"PRODUCT_MODULE_NAME" = "Prism";
-				"EXECUTABLE_NAME" = "Prism";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "local.chatgptAccountSwitcher";
-				"INFOPLIST_FILE" = "info.plist";
-				"GENERATE_INFOPLIST_FILE" = "NO";
-				"SKIP_INSTALL" = "NO";
-				"INSTALL_PATH" = "$(LOCAL_APPS_DIR)";
-				"LD_RUNPATH_SEARCH_PATHS" = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-			};
-			"name" = "Debug";
-		};
-		"D4A96B521F3D78469F32E0BE" = {
-			"isa" = "XCBuildConfiguration";
-			"buildSettings" = {
-				"PRODUCT_NAME" = "Prism";
-				"PRODUCT_MODULE_NAME" = "Prism";
-				"EXECUTABLE_NAME" = "Prism";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "local.chatgptAccountSwitcher";
-				"INFOPLIST_FILE" = "info.plist";
-				"GENERATE_INFOPLIST_FILE" = "NO";
-				"SKIP_INSTALL" = "NO";
-				"INSTALL_PATH" = "$(LOCAL_APPS_DIR)";
-				"LD_RUNPATH_SEARCH_PATHS" = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-			};
-			"name" = "Release";
-		};
-		"7FA7C6DD60DC323C7F3FA76C" = {
-			"isa" = "XCConfigurationList";
-			"buildConfigurations" = (
-				"AB00255049ED0D95F2F0606D",
-				"D4A96B521F3D78469F32E0BE",
+		D8AFF257B45D0C513672EC45 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				26FBA7F24836E6B06A378551 /* accountUsage.swift in Sources */,
+				513740E0625A6B74887A084F /* authStore.swift in Sources */,
+				5B9F025BEF2A6D7019B79D31 /* clientShutdown.swift in Sources */,
+				7563FD27FDB25D04D45ECBE7 /* macRuntime.swift in Sources */,
+				09AE2CDF039117CAB20198B5 /* main.swift in Sources */,
+				AC7609CFC3341CFD401BE425 /* menuApp.swift in Sources */,
+				2653034CBD2623B56CFCC230 /* processControl.swift in Sources */,
+				AB625330EA38C1EC5FA61932 /* usageMonitor.swift in Sources */,
+				A6270F685F667C99C1FFA37F /* appUpdates.swift in Sources */,
+				1C76487083BF2BB550C90AB1 /* aboutWindow.swift in Sources */,
+				114204DD21DC82015AEE6134 /* updatePolicy.swift in Sources */,
 			);
-			"defaultConfigurationIsVisible" = "0";
-			"defaultConfigurationName" = "Release";
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-		"061531FC454E83EE1C78D4F1" = {
-			"isa" = "XCBuildConfiguration";
-			"buildSettings" = {
-				"PRODUCT_NAME" = "PrismTests";
-				"COPY_PHASE_STRIP" = "NO";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "local.chatgptAccountSwitcher.tests";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"SKIP_INSTALL" = "YES";
-				"TEST_HOST" = "";
-				"BUNDLE_LOADER" = "";
-				"LD_RUNPATH_SEARCH_PATHS" = (
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		47A0E70BB880F8163377E442 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2E53368AE3531F4D7FFA75B2 /* ShutdownFixture */;
+			targetProxy = 5185CBDBD2D17844E74DF6D2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		061531FC454E83EE1C78D4F1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@loader_path/../Frameworks",
 					"@executable_path/../Frameworks",
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.chatgptAccountSwitcher.tests;
+				PRODUCT_NAME = PrismTests;
+				SKIP_INSTALL = YES;
+				TEST_HOST = "";
 			};
-			"name" = "Debug";
+			name = Debug;
 		};
-		"C07D30961C90BC4ACFC24C24" = {
-			"isa" = "XCBuildConfiguration";
-			"buildSettings" = {
-				"PRODUCT_NAME" = "PrismTests";
-				"COPY_PHASE_STRIP" = "NO";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "local.chatgptAccountSwitcher.tests";
-				"GENERATE_INFOPLIST_FILE" = "YES";
-				"SKIP_INSTALL" = "YES";
-				"TEST_HOST" = "";
-				"BUNDLE_LOADER" = "";
-				"LD_RUNPATH_SEARCH_PATHS" = (
+		517C32DF899E5AE6DC4BB794 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				PRODUCT_NAME = "codex-shutdown-fixture";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		8DB23D5B0AA80A48AA651830 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C599F654CD40A674A397ECB3 /* app.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				ONLY_ACTIVE_ARCH = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		AB00255049ED0D95F2F0606D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				EXECUTABLE_NAME = Prism;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = info.plist;
+				INSTALL_PATH = "$(LOCAL_APPS_DIR)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.chatgptAccountSwitcher;
+				PRODUCT_MODULE_NAME = Prism;
+				PRODUCT_NAME = Prism;
+				SKIP_INSTALL = NO;
+			};
+			name = Debug;
+		};
+		C07D30961C90BC4ACFC24C24 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@loader_path/../Frameworks",
 					"@executable_path/../Frameworks",
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.chatgptAccountSwitcher.tests;
+				PRODUCT_NAME = PrismTests;
+				SKIP_INSTALL = YES;
+				TEST_HOST = "";
 			};
-			"name" = "Release";
+			name = Release;
 		};
-		"3AC24B37B5C6634D049790CE" = {
-			"isa" = "XCConfigurationList";
-			"buildConfigurations" = (
-				"061531FC454E83EE1C78D4F1",
-				"C07D30961C90BC4ACFC24C24",
-			);
-			"defaultConfigurationIsVisible" = "0";
-			"defaultConfigurationName" = "Release";
-		};
-		"517C32DF899E5AE6DC4BB794" = {
-			"isa" = "XCBuildConfiguration";
-			"buildSettings" = {
-				"PRODUCT_NAME" = "codex-shutdown-fixture";
-				"SKIP_INSTALL" = "YES";
+		D4A96B521F3D78469F32E0BE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				EXECUTABLE_NAME = Prism;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = info.plist;
+				INSTALL_PATH = "$(LOCAL_APPS_DIR)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.chatgptAccountSwitcher;
+				PRODUCT_MODULE_NAME = Prism;
+				PRODUCT_NAME = Prism;
+				SKIP_INSTALL = NO;
 			};
-			"name" = "Debug";
+			name = Release;
 		};
-		"F72E0322B889D9BB282BE434" = {
-			"isa" = "XCBuildConfiguration";
-			"buildSettings" = {
-				"PRODUCT_NAME" = "codex-shutdown-fixture";
-				"SKIP_INSTALL" = "YES";
+		F72E0322B889D9BB282BE434 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				PRODUCT_NAME = "codex-shutdown-fixture";
+				SKIP_INSTALL = YES;
 			};
-			"name" = "Release";
+			name = Release;
 		};
-		"63C23731268756009E2F6B24" = {
-			"isa" = "XCConfigurationList";
-			"buildConfigurations" = (
-				"517C32DF899E5AE6DC4BB794",
-				"F72E0322B889D9BB282BE434",
-			);
-			"defaultConfigurationIsVisible" = "0";
-			"defaultConfigurationName" = "Release";
-		};
-		"8C1A045E96B998B40533C7FF" = {
-			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "7FA7C6DD60DC323C7F3FA76C";
-			"buildPhases" = (
-				"D8AFF257B45D0C513672EC45",
-				"91024282FFD499F5807DB5BC",
-				"DC549ACCB7C726C62ECFD4E2",
-				"D9843D68421ECB408EB51EB8",
-			);
-			"buildRules" = (
-			);
-			"dependencies" = (
-			);
-			"name" = "Prism";
-			"productName" = "Prism";
-			"productReference" = "81F31879437340D5CD6ED968";
-			"productType" = "com.apple.product-type.application";
-			"packageProductDependencies" = (
-				"705BB44805921CCAF962869D",
-			);
-		};
-		"2ADDEE89B29C55E11126D89F" = {
-			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "3AC24B37B5C6634D049790CE";
-			"buildPhases" = (
-				"B2298129A58493C45A5D7D9A",
-				"28557525D9B40FEE6754FB60",
-				"3F6BC17F79ADBDD97FB52430",
-				"EA7D87BA869FFEF9B34CDDE2",
-			);
-			"buildRules" = (
-			);
-			"dependencies" = (
-				"47A0E70BB880F8163377E442",
-			);
-			"name" = "PrismTests";
-			"productName" = "PrismTests";
-			"productReference" = "70F09BF32F6D77A92FF191B4";
-			"productType" = "com.apple.product-type.bundle.unit-test";
-		};
-		"2E53368AE3531F4D7FFA75B2" = {
-			"isa" = "PBXNativeTarget";
-			"buildConfigurationList" = "63C23731268756009E2F6B24";
-			"buildPhases" = (
-				"3312DDF7A31BCFA7DFAEA0F2",
-			);
-			"buildRules" = (
-			);
-			"dependencies" = (
-			);
-			"name" = "ShutdownFixture";
-			"productName" = "codex-shutdown-fixture";
-			"productReference" = "04A8572B6184C2B4B0D58127";
-			"productType" = "com.apple.product-type.tool";
-		};
-		"244210E48437B6556980A702" = {
-			"isa" = "PBXProject";
-			"attributes" = {
-				"BuildIndependentTargetsInParallel" = "YES";
-				"LastUpgradeCheck" = "2600";
+		FDD3EA28A0B1309668A442B2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C599F654CD40A674A397ECB3 /* app.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
-			"buildConfigurationList" = "1922B098E983995960BE56B0";
-			"compatibilityVersion" = "Xcode 14.0";
-			"developmentRegion" = "en";
-			"hasScannedForEncodings" = "0";
-			"knownRegions" = (
-				"en",
-				"Base",
-			);
-			"mainGroup" = "0035FE99EA2940F7FA633A58";
-			"productRefGroup" = "0A3E27B8CA818264D75C8D81";
-			"projectDirPath" = "";
-			"projectRoot" = "";
-			"targets" = (
-				"8C1A045E96B998B40533C7FF",
-				"2ADDEE89B29C55E11126D89F",
-				"2E53368AE3531F4D7FFA75B2",
-			);
-			"packageReferences" = (
-				"D3A8FAEEE9147FE9F96106D4",
-			);
+			name = Debug;
 		};
-		"D3A8FAEEE9147FE9F96106D4" = {
-			"isa" = "XCRemoteSwiftPackageReference";
-			"repositoryURL" = "https://github.com/sparkle-project/Sparkle";
-			"requirement" = {
-				"kind" = "exactVersion";
-				"version" = "2.9.6";
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1922B098E983995960BE56B0 /* Build configuration list for PBXProject "Prism" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FDD3EA28A0B1309668A442B2 /* Debug */,
+				8DB23D5B0AA80A48AA651830 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3AC24B37B5C6634D049790CE /* Build configuration list for PBXNativeTarget "PrismTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				061531FC454E83EE1C78D4F1 /* Debug */,
+				C07D30961C90BC4ACFC24C24 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		63C23731268756009E2F6B24 /* Build configuration list for PBXNativeTarget "ShutdownFixture" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				517C32DF899E5AE6DC4BB794 /* Debug */,
+				F72E0322B889D9BB282BE434 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7FA7C6DD60DC323C7F3FA76C /* Build configuration list for PBXNativeTarget "Prism" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB00255049ED0D95F2F0606D /* Debug */,
+				D4A96B521F3D78469F32E0BE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D3A8FAEEE9147FE9F96106D4 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.9.6;
 			};
 		};
-		"9A77D6BAD8F1B72AB455A18A" = {
-			"path" = "aboutWindow.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		705BB44805921CCAF962869D /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D3A8FAEEE9147FE9F96106D4 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
-		"6D0E8789C33E341080B9485F" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "BE9CAC8AD48690F4A998059E";
-		};
-		"BE9CAC8AD48690F4A998059E" = {
-			"path" = "updatePolicy.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
-		"1C76487083BF2BB550C90AB1" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "9A77D6BAD8F1B72AB455A18A";
-		};
-		"114204DD21DC82015AEE6134" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "BE9CAC8AD48690F4A998059E";
-		};
-		"6CAE87468699F4028786E423" = {
-			"path" = "updateTests.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
-		"705BB44805921CCAF962869D" = {
-			"isa" = "XCSwiftPackageProductDependency";
-			"package" = "D3A8FAEEE9147FE9F96106D4";
-			"productName" = "Sparkle";
-		};
-		"251FB4DB5AED851570D83A71" = {
-			"isa" = "PBXBuildFile";
-			"productRef" = "705BB44805921CCAF962869D";
-		};
-		"A6270F685F667C99C1FFA37F" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "9380E9A45E5CE9F461B4AB58";
-		};
-		"9380E9A45E5CE9F461B4AB58" = {
-			"path" = "appUpdates.swift";
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"sourceTree" = "<group>";
-		};
-		"F460C03D0DDD0C1D50E93C0F" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "6CAE87468699F4028786E423";
-		};
-		"40DD6ABD9CFF084AE6A86880" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "text";
-			"path" = "sparkleLicense.txt";
-			"sourceTree" = "<group>";
-		};
-		"C5E8881C7C91085D5EEE8AC3" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "40DD6ABD9CFF084AE6A86880";
-		};
+/* End XCSwiftPackageProductDependency section */
 	};
-	"rootObject" = "244210E48437B6556980A702";
+	rootObject = 244210E48437B6556980A702 /* Project object */;
 }

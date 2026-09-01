@@ -71,6 +71,28 @@ enum CodexAuthStoreKind: Equatable {
     case directKeychain
 }
 
+enum CodexKeychainSelection: Equatable {
+    case file
+    case direct(account: String)
+}
+
+func selectCodexKeychain(expected: String, discovered: [String]) throws -> CodexKeychainSelection {
+    let candidates = Array(Set(discovered)).sorted()
+    if candidates.contains(expected) { return .direct(account: expected) }
+    guard !candidates.isEmpty else { return .file }
+    let pattern = #"^cli\|[0-9a-f]{16}$"#
+    let direct = candidates.filter {
+        $0.range(of: pattern, options: .regularExpression) != nil
+    }
+    guard direct.count == candidates.count else {
+        throw SwitchError("检测到 Prism 尚不支持的 Codex 钥匙串布局或 Secrets 后端。未修改当前登录。")
+    }
+    guard direct.count == 1, let account = direct.first else {
+        throw SwitchError("检测到多个 Codex Direct Keyring 项，无法确定当前客户端使用哪一个。未修改当前登录。")
+    }
+    return .direct(account: account)
+}
+
 final class DirectKeychainAuthStore: CodexAuthStore {
     static let service = "Codex Auth"
     let account: String
@@ -80,6 +102,11 @@ final class DirectKeychainAuthStore: CodexAuthStore {
         let canonical = home.resolvingSymlinksInPath().standardizedFileURL.path
         let digest = SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined()
         account = "cli|" + digest.prefix(16)
+        self.allowInteraction = allowInteraction
+    }
+
+    init(account: String, allowInteraction: Bool) {
+        self.account = account
         self.allowInteraction = allowInteraction
     }
 
@@ -103,6 +130,28 @@ final class DirectKeychainAuthStore: CodexAuthStore {
 
     func probe(exactAccount: Bool = true) -> OSStatus {
         SecItemCopyMatching(query(exactAccount: exactAccount) as CFDictionary, nil)
+    }
+
+    func discoverAccounts() throws -> [String] {
+        var request = query(exactAccount: false, matchLimit: false)
+        request[kSecMatchLimit as String] = kSecMatchLimitAll
+        request[kSecReturnAttributes as String] = true
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(request as CFDictionary, &result)
+        if status == errSecItemNotFound { return [] }
+        guard status == errSecSuccess else {
+            throw SwitchError(codexAuthStoreRejection(for: status)
+                ?? "无法确认 Codex 钥匙串认证。")
+        }
+        let items: [[String: Any]]
+        if let list = result as? [[String: Any]] {
+            items = list
+        } else if let item = result as? [String: Any] {
+            items = [item]
+        } else {
+            throw SwitchError("无法识别 Codex 钥匙串元数据。未读取或修改当前登录。")
+        }
+        return items.compactMap { $0[kSecAttrAccount as String] as? String }
     }
 
     func read() throws -> Data? {
@@ -225,34 +274,35 @@ final class MacRuntime {
         }
         let file = try AuthFile(home: home)
         let preference = try file.credentialStorePreference()
-        let keychain = DirectKeychainAuthStore(home: home, allowInteraction: allowInteraction)
-        let directStatus = keychain.probe()
+        let expectedKeychain = DirectKeychainAuthStore(home: home, allowInteraction: allowInteraction)
+        let directStatus = expectedKeychain.probe()
         let kind: CodexAuthStoreKind
+        let store: any CodexAuthStore
         switch preference {
         case .file:
             kind = .file
-        case .keyring:
+            store = file
+        case .keyring, .auto, .unspecified:
             if directStatus != errSecSuccess && directStatus != errSecItemNotFound {
                 throw SwitchError(codexAuthStoreRejection(for: directStatus)
                     ?? "无法确认 Codex 钥匙串认证。")
             }
-            kind = .directKeychain
-        case .auto, .unspecified:
-            if directStatus == errSecSuccess {
+            let selection = try selectCodexKeychain(expected: expectedKeychain.account,
+                discovered: directStatus == errSecSuccess
+                    ? [expectedKeychain.account] : expectedKeychain.discoverAccounts())
+            switch selection {
+            case .direct(let account):
                 kind = .directKeychain
-            } else if directStatus == errSecItemNotFound {
-                let serviceStatus = keychain.probe(exactAccount: false)
-                guard serviceStatus == errSecItemNotFound else {
-                    throw SwitchError("检测到不属于默认 CODEX_HOME 的 Codex 钥匙串项目，或当前客户端使用了 Prism 尚不支持的 Secrets 后端。未修改当前登录。")
-                }
+                store = DirectKeychainAuthStore(account: account, allowInteraction: allowInteraction)
+            case .file where preference == .keyring:
+                kind = .directKeychain
+                store = expectedKeychain
+            case .file:
                 kind = .file
-            } else {
-                throw SwitchError(codexAuthStoreRejection(for: directStatus)
-                    ?? "无法确认 Codex 钥匙串认证。")
+                store = file
             }
         }
-        return CodexAuthAccess(store: kind == .file ? file : keychain,
-            file: file, kind: kind, preference: preference)
+        return CodexAuthAccess(store: store, file: file, kind: kind, preference: preference)
     }
 
     func requireStopped() throws {

@@ -36,7 +36,7 @@
 - 官方当前认证仍采用其已经选择的文件或 Direct Keyring 存储。文件替换使用 `0600` 权限和同目录原子重命名；钥匙串更新精确匹配 service 与 account，并在写入后重新读取校验。其他配置不变。
 - 每次替换前保存当前最新认证；备份失败不替换当前存储。启动失败时，仅在相关进程均停止且认证未被其他程序更改的情况下恢复原认证。
 - 工具意外退出时，已保存的账号仍在钥匙串中；结束 Codex 进程后重新运行工具，选择原账号恢复。
-- 只支持当前检查过的官方 macOS ChatGPT `26.825.51511`、默认目录、文件认证、Codex Direct Keyring 及完整 ChatGPT 令牌格式。Direct Keyring 精确匹配 `Codex Auth` 服务和默认 `CODEX_HOME` 的 `cli|<hash>` 账号；Secrets 后端、其他钥匙串布局、版本更新、未知认证格式、自定义登录策略或不安全文件权限时拒绝操作，绝不自动修改安全策略。
+- 只支持当前检查过的官方 macOS ChatGPT `26.825.51511`、默认文件认证、Codex Direct Keyring 及完整 ChatGPT 令牌格式。Direct Keyring 优先匹配默认 `CODEX_HOME` 的 `cli|<hash>` account；若桌面客户端使用内部认证目录，则只在 `Codex Auth` 服务下恰好存在一个符合官方格式的候选时采用它。多个候选、Secrets 后端、其他钥匙串布局、版本更新、未知认证格式、自定义登录策略或不安全文件权限时拒绝操作，绝不自动修改安全策略。
 - 进程检查和认证内容比较可以发现普通并发冲突，但无法与不遵守本工具锁的其他客户端形成跨程序事务。切换期间其他程序启动仍存在竞态；工具不会宣称绝对隔离。
 - 清理权限来自退出前和等待期间观察到的父子关系，不来自进程名称。内核启动时间（精确到微秒）与可执行文件路径用于校验 PID 是否仍对应原进程；发送信号前再次校验。强制结束仅限确认清单里的实例，确认后出现的新进程不会自动加入强制结束清单。macOS 的检查与发送信号仍是两个系统调用，不能声称绝对消除竞态。
 - 某些长期运行的插件宿主无法通过内核接口取得可执行文件路径时，会使用 `ps` 的可执行文件字段辅助识别，不读取命令参数。备用路径只用于分类与提示，不能用于授权发送结束信号。
@@ -89,12 +89,12 @@ xcodebuild -project Prism.xcodeproj -scheme Prism \
   -archivePath build/Prism.xcarchive ARCHS=arm64 archive
 
 # 只对已有归档打包，不重复编译或重复创建 DMG
-bash scripts/packageRelease.sh v0.3.4
+bash scripts/packageRelease.sh v0.3.5
 ```
 
 再次运行时，为测试报告使用新的 `-resultBundlePath`，或移走之前的报告；Xcode 不覆盖已有 `.xcresult`。DerivedData 和用户个人 Xcode 设置由 Git 忽略。没有新增 XcodeGen 或 Tuist；Sparkle 2.9.6 通过 Swift Package Manager 固定版本和提交号，`Package.resolved` 需提交。首次构建需要联网解析依赖。
 
-归档中的应用位于 `build/Prism.xcarchive/Products/Applications/Prism.app`；最终分发文件位于 `build/release/`，包含 `prism-v0.3.4-macos-arm64.dmg`、`SHA256SUMS.txt` 和发行说明。打包脚本先读取 Xcode 的有效配置，并核对归档中版本、标识、最低系统版本和可执行文件名，拒绝版本不一致的归档。
+归档中的应用位于 `build/Prism.xcarchive/Products/Applications/Prism.app`；最终分发文件位于 `build/release/`，包含 `prism-v0.3.5-macos-arm64.dmg`、`SHA256SUMS.txt` 和发行说明。打包脚本先读取 Xcode 的有效配置，并核对归档中版本、标识、最低系统版本和可执行文件名，拒绝版本不一致的归档。
 
 保留的脚本只有资源生成和分发职责：
 
@@ -129,14 +129,14 @@ CI 使用只读仓库权限，官方 Actions 固定到提交号，checkout 不�
 3. 在待发布提交上创建并推送匹配版本的标签；当前版本示例，仅在准备发布时执行：
 
    ```sh
-   git tag -a v0.3.4 -m 'Release v0.3.4'
-   git push origin v0.3.4
+   git tag -a v0.3.5 -m 'Release v0.3.5'
+   git push origin v0.3.5
    ```
 
 4. `release.yml` 首先通过 Xcode 解析配置并校验标签，再运行 XCTest、归档、生成 DMG 和 SHA-256 校验文件，使用受保护的更新密钥签署 DMG 并生成 `appcast.xml`，验证签名与应用内公钥一致后上传完整附件，再自动公开 Release。上传期间使用临时草稿，避免用户下载到不完整附件，无需人工发布。
 5. 打标签前编辑根目录 `releaseNotes.md`；该文件会同时嵌入更新订阅和发行说明。推送标签即表示确认发布，请在此前完成必要的安装包和账号切换验收。仅在 GitHub 编辑 Release 正文不会改变已签包对应的更新说明。已有相同标签的 Release 不会被覆盖；失败重试前先检查旧草稿，正式发布后应使用新版本。
 
-可单独运行 `bash scripts/packageRelease.sh v0.3.4 --check-only`，无需先构建归档。为避免旧附件混入，本地再次打包前需移走已有的 `build/release/`；CI 使用新运行环境。Xcode 普通构建不生成 DMG，分发阶段只生成一次 DMG。
+可单独运行 `bash scripts/packageRelease.sh v0.3.5 --check-only`，无需先构建归档。为避免旧附件混入，本地再次打包前需移走已有的 `build/release/`；CI 使用新运行环境。Xcode 普通构建不生成 DMG，分发阶段只生成一次 DMG。
 
 Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `GITHUB_TOKEN` 上传附件并自动公开 Release；无需 PAT 或 Apple Secrets，但签名步骤必须配置 `release-signing` Environment 中的 `SPARKLE_PRIVATE_KEY` Secret。PR 和普通 CI 不使用更新私钥。配置推送后才会在 GitHub 上运行，本地通过不能代替云端验证。
 
@@ -168,7 +168,7 @@ Release 任务仅由标签触发，使用 `contents: write` 和步骤限定的 `
 本地正式更新包使用和普通 DMG 相同的归档，额外指定签名模式：
 
 ```sh
-bash scripts/packageRelease.sh v0.3.4 --signed
+bash scripts/packageRelease.sh v0.3.5 --signed
 ```
 
 本地签名只读取 `xelume-prism` 对应的更新密钥；CI 只在签名步骤通过标准输入传递 Secret。Sparkle 官方 `generate_appcast` 生成元数据与 EdDSA 签名，`updateFeed.swift` 再以应用内公钥独立验证 DMG、版本、最低系统和固定下载地址。发布说明来自根目录 `releaseNotes.md`，第一版不生成增量包。
