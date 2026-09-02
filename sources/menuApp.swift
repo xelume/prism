@@ -168,7 +168,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
         menu.delegate = self
         menu.autoenablesItems = false
-        menu.minimumWidth = 340
+        menu.minimumWidth = 280
         accountItems = [:]
         addItem("切换账号", to: menu)
         accountStatusItem = addItem("", to: menu)
@@ -233,7 +233,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             : NSFont.menuFont(ofSize: NSFont.systemFontSize)
         let result = NSMutableAttributedString(string: title, attributes: [.font: font])
         guard workspace else { return result }
-        result.append(NSAttributedString(string: "  团队", attributes: [
+        result.append(NSAttributedString(string: "  team", attributes: [
             .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium),
             .foregroundColor: NSColor.secondaryLabelColor
         ]))
@@ -265,11 +265,13 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let header = NSMenuItem(title: account.label, action: #selector(switchAccount(_:)), keyEquivalent: "")
             header.target = self
             header.representedObject = account.identity
-            let rows = [header, NSMenuItem(title: "", action: nil, keyEquivalent: ""),
-                        NSMenuItem(title: "", action: nil, keyEquivalent: "")]
+            let rows = [header] + UsageWindowKind.allCases.map { _ in
+                NSMenuItem(title: "", action: nil, keyEquivalent: "")
+            }
             for row in rows.dropFirst() {
                 row.indentationLevel = 1
                 row.isEnabled = false
+                row.isHidden = true
             }
             for row in rows { menu.insertItem(row, at: menu.index(of: accountSeparator)) }
             accountItems[account.identity] = rows
@@ -283,7 +285,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             rows[0].setAccessibilityLabel(rows[0].title)
             for row in rows.dropFirst() {
                 row.attributedTitle = nil
-                row.title = "暂时无法查看额度"
+                row.title = ""
+                row.isHidden = true
             }
         }
         let now = Date()
@@ -292,7 +295,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let current = account.identity == usage.currentIdentity
             let state = usage.states[account.identity]
             var badges: [String] = []
-            if let failure = state?.failure { badges.append(failureTitle(failure)) }
+            if let failure = state?.failure, let title = failureTitle(failure) { badges.append(title) }
             let suffix = badges.isEmpty ? "" : "   " + badges.joined(separator: " · ")
             rows[0].title = account.label + suffix
             rows[0].state = current ? .on : .off
@@ -301,15 +304,20 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             rows[0].isEnabled = actionsAllowed && !current && usage.savedIdentities.contains(account.identity)
             rows[0].attributedTitle = accountMenuTitle(rows[0].title,
                 workspace: account.isWorkspaceAccount, bold: current)
-            let pending = state?.value != nil ? "暂无额度信息" : (state?.failure != nil ? "暂时无法查看额度" : (usage.refreshing ? "正在更新额度…" : "额度尚未更新"))
-            let titles = [
-                windowTitle("5 小时", state?.value?.fiveHour, failed: state?.failure != nil, pending: pending, now: now),
-                windowTitle("每周", state?.value?.week, failed: state?.failure != nil, pending: pending, now: now)
-            ]
-            for (row, title) in zip(rows.dropFirst(), titles) {
+            var titles: [String] = []
+            for (row, kind) in zip(rows.dropFirst(), UsageWindowKind.allCases) {
+                guard let window = kind.window(in: state?.value) else {
+                    row.attributedTitle = nil
+                    row.title = ""
+                    row.isHidden = true
+                    continue
+                }
+                let title = UsageMenuTitle.make(kind: kind, window: window, now: now)
+                titles.append(title)
                 row.title = title
                 row.attributedTitle = NSAttributedString(string: title,
                     attributes: [.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)])
+                row.isHidden = false
             }
             // Keep full labels available to VoiceOver without mouse-hover popups.
             rows[0].setAccessibilityLabel(account.label
@@ -341,48 +349,14 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         rebuildMenu()
     }
 
-    private func failureTitle(_ failure: UsageFailure) -> String {
+    private func failureTitle(_ failure: UsageFailure) -> String? {
         switch failure {
         case .expired: return "需要重新登录"
         case .forbidden: return "无法查看额度"
         case .throttled: return "稍后再试"
         case .unavailable: return "更新失败"
-        case .unsupported: return "暂无额度信息"
+        case .unsupported: return nil
         }
-    }
-
-    private func windowTitle(_ label: String, _ window: UsageWindow?, failed: Bool,
-                             pending: String, now: Date) -> String {
-        guard let window else { return label + " · " + pending }
-        let elapsed = window.resetsAt.map { $0 <= now.timeIntervalSince1970 } ?? false
-        var text = "\(label) \(failed || elapsed ? "上次剩余" : "剩余") \(window.remainingPercent)%"
-        guard let reset = window.resetsAt else { return text + " · 重置时间未知" }
-        if label == "5 小时" {
-            text += " · " + resetCountdown(reset, now: now)
-        } else {
-            let date = Date(timeIntervalSince1970: reset)
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "zh_CN")
-            formatter.calendar = Calendar(identifier: .gregorian)
-            formatter.timeZone = .current
-            let sameYear = formatter.calendar.component(.year, from: date) == formatter.calendar.component(.year, from: now)
-            formatter.dateFormat = sameYear ? "M月d日 HH:mm" : "yyyy年M月d日 HH:mm"
-            text += " · " + formatter.string(from: date) + " 重置"
-            if elapsed { text += "（等待确认）" }
-        }
-        return text
-    }
-
-    private func resetCountdown(_ reset: TimeInterval, now: Date) -> String {
-        let seconds = reset - now.timeIntervalSince1970
-        guard seconds > 0 else { return "等待重置确认" }
-        if seconds < 60 { return "不到1分钟后重置" }
-        // Round to whole minutes; never imply that a passed boundary replenished quota.
-        let minutes = Int(ceil(seconds / 60))
-        if seconds < 3600 { return "\(minutes)分钟后重置" }
-        let hours = minutes / 60
-        let remainder = minutes % 60
-        return "\(hours)小时" + (remainder == 0 ? "" : "\(remainder)分钟") + "后重置"
     }
 
     @objc private func accountLoadError() {

@@ -15,9 +15,16 @@ struct UsageWindow: Equatable, Decodable {
 struct AccountUsage: Equatable {
     let fiveHour: UsageWindow?
     let week: UsageWindow?
+    let month: UsageWindow?
+
+    init(fiveHour: UsageWindow?, week: UsageWindow?, month: UsageWindow? = nil) {
+        self.fiveHour = fiveHour
+        self.week = week
+        self.month = month
+    }
 
     // Match the actual duration, not primary/secondary position. Other/model-specific
-    // buckets must never be presented as the account's general five-hour/week limit.
+    // buckets must never be presented as the account's general usage limits.
     static func decode(_ data: Data) throws -> AccountUsage {
         struct Limits: Decodable {
             let primary_window: UsageWindow?
@@ -34,8 +41,11 @@ struct AccountUsage: Equatable {
         }
         let five = windows.filter { $0.seconds == 18_000 }
         let week = windows.filter { $0.seconds == 604_800 }
-        guard five.count <= 1, week.count <= 1 else { throw UsageFailure.unsupported }
-        return AccountUsage(fiveHour: five.first, week: week.first)
+        let month = windows.filter { (28 * 86_400...31 * 86_400).contains($0.seconds) }
+        guard five.count <= 1, week.count <= 1, month.count <= 1 else {
+            throw UsageFailure.unsupported
+        }
+        return AccountUsage(fiveHour: five.first, week: week.first, month: month.first)
     }
 }
 

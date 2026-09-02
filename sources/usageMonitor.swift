@@ -223,12 +223,12 @@ final class UsageMonitor {
     }
 
     private func futureResetTime(_ value: AccountUsage?, after date: Date) -> TimeInterval? {
-        [value?.fiveHour?.resetsAt, value?.week?.resetsAt].compactMap { $0 }
+        [value?.fiveHour?.resetsAt, value?.week?.resetsAt, value?.month?.resetsAt].compactMap { $0 }
             .filter { $0 > date.timeIntervalSince1970 }.min()
     }
 
     private func elapsedResetTime(_ value: AccountUsage?, at date: Date) -> TimeInterval? {
-        [value?.fiveHour?.resetsAt, value?.week?.resetsAt].compactMap { $0 }
+        [value?.fiveHour?.resetsAt, value?.week?.resetsAt, value?.month?.resetsAt].compactMap { $0 }
             .filter { $0 <= date.timeIntervalSince1970 }.max()
     }
 

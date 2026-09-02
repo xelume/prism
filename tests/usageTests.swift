@@ -74,24 +74,52 @@ func runUsageTests() async throws {
     try requireUsage(normal.week?.remainingPercent == 0, "over-quota clamps at zero")
     try requireUsage(StatusBarUsageTitle.make(mode: .off, usage: normal) == nil,
                      "status bar usage defaults to hidden output")
-    try requireUsage(StatusBarUsageTitle.make(mode: .fiveHour, usage: normal) == "5h 79%",
-                     "five-hour status title")
-    try requireUsage(StatusBarUsageTitle.make(mode: .week, usage: normal) == "7d 0%",
-                     "weekly status title uses compact seven-day label")
-    try requireUsage(StatusBarUsageTitle.make(mode: .both, usage: normal) == "5h 79% · 7d 0%",
-                     "combined status title")
+    try requireUsage(StatusBarUsageTitle.make(mode: .brief, usage: normal) == "5h 79%",
+                     "brief status title uses the shortest available window")
+    try requireUsage(StatusBarUsageTitle.make(mode: .all, usage: normal) == "5h 79% · 7d 0%",
+                     "all status title includes every available window")
     let partialUsage = AccountUsage(fiveHour: normal.fiveHour, week: nil)
-    try requireUsage(StatusBarUsageTitle.make(mode: .both, usage: partialUsage) == "5h 79%" &&
-                     StatusBarUsageTitle.make(mode: .week, usage: partialUsage) == nil,
+    try requireUsage(StatusBarUsageTitle.make(mode: .all, usage: partialUsage) == "5h 79%",
                      "status title omits unavailable windows")
+    try requireUsage(StatusBarUsageMode.brief.menuTitle == "简略" &&
+                     StatusBarUsageMode.all.menuTitle == "全部",
+                     "status bar usage menu exposes brief and all modes")
+
+    let menuNow = Date(timeIntervalSince1970: 1_999_993_700)
+    let utc = TimeZone(secondsFromGMT: 0)!
+    try requireUsage(UsageMenuTitle.make(kind: .fiveHour, window: normal.fiveHour!,
+                                         now: menuNow, timeZone: utc) == "5h 79% · 1h45m",
+                     "five-hour menu title uses compact countdown")
+    try requireUsage(UsageMenuTitle.make(kind: .week, window: normal.week!,
+                                         now: menuNow, timeZone: utc) == "7d 0% · 5/25 02:13",
+                     "weekly menu title uses compact reset date")
+
+    let monthly = try decodeUsage("""
+    {"rate_limit":{"primary_window":{"used_percent":12.5,"limit_window_seconds":2592000,"reset_at":2000600000}}}
+    """)
+    try requireUsage(monthly.month?.remainingPercent == 87 && monthly.fiveHour == nil && monthly.week == nil,
+                     "28-to-31-day windows map to monthly usage")
+    try requireUsage(UsageMenuTitle.make(kind: .month, window: monthly.month!,
+                                         now: menuNow, timeZone: utc) == "1mo 87% · 5/25 02:13",
+                     "monthly menu title uses compact reset date")
+    try requireUsage(StatusBarUsageTitle.make(mode: .brief, usage: monthly) == "1mo 87%",
+                     "brief status falls back to the shortest available window")
+    let allWindows = AccountUsage(fiveHour: normal.fiveHour, week: normal.week, month: monthly.month)
+    try requireUsage(StatusBarUsageTitle.make(mode: .all, usage: allWindows) ==
+                     "5h 79% · 7d 0% · 1mo 87%",
+                     "all status includes monthly usage")
 
     let defaultsName = "StatusBarUsageTests-" + UUID().uuidString
     let defaults = UserDefaults(suiteName: defaultsName)!
     defer { defaults.removePersistentDomain(forName: defaultsName) }
     let preference = StatusBarUsagePreference(defaults: defaults)
     try requireUsage(preference.mode == .off, "status bar usage is off by default")
-    preference.mode = .both
-    try requireUsage(preference.mode == .both, "status bar usage preference persists")
+    preference.mode = .all
+    try requireUsage(preference.mode == .all, "status bar usage preference persists")
+    defaults.set("fiveHour", forKey: StatusBarUsagePreference.key)
+    try requireUsage(preference.mode == .brief, "legacy single-window preference migrates to brief")
+    defaults.set("both", forKey: StatusBarUsagePreference.key)
+    try requireUsage(preference.mode == .all, "legacy combined preference migrates to all")
     defaults.set("invalid", forKey: StatusBarUsagePreference.key)
     try requireUsage(preference.mode == .off, "invalid status bar preference falls back to off")
     let swapped = try decodeUsage("""
