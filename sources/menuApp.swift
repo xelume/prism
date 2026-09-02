@@ -88,293 +88,6 @@ private final class LoginWaitPanel: NSObject, NSWindowDelegate {
     }
 }
 
-private final class FlippedDocumentView: NSView {
-    override var isFlipped: Bool { true }
-}
-
-private final class AccountRowView: NSStackView {
-    private var tracking: NSTrackingArea?
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 8
-    }
-
-    required init?(coder: NSCoder) { fatalError("Use init(frame:)") }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let tracking { removeTrackingArea(tracking) }
-        let area = NSTrackingArea(rect: bounds, options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
-                                  owner: self, userInfo: nil)
-        addTrackingArea(area)
-        tracking = area
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.06).cgColor
-    }
-
-    override func mouseExited(with event: NSEvent) { layer?.backgroundColor = NSColor.clear.cgColor }
-}
-
-@MainActor
-private final class AccountManagerWindow: NSWindowController, NSWindowDelegate {
-    private var accounts: [SavedAccount]
-    private let currentIdentity: String?
-    private let rows = NSStackView()
-    private let listDocument = FlippedDocumentView()
-    private let status = NSTextField(labelWithString: "")
-    private var editingIdentity: String?
-    private var working = false
-    private let onRename: (String, String) async throws -> [SavedAccount]
-    private let onDelete: (String) async throws -> [SavedAccount]
-    private let onClose: () -> Void
-
-    init(accounts: [SavedAccount], currentIdentity: String?,
-         onRename: @escaping (String, String) async throws -> [SavedAccount],
-         onDelete: @escaping (String) async throws -> [SavedAccount],
-         onClose: @escaping () -> Void) {
-        self.accounts = accounts
-        self.currentIdentity = currentIdentity
-        self.onRename = onRename
-        self.onDelete = onDelete
-        self.onClose = onClose
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 500),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                              backing: .buffered, defer: false)
-        window.title = "Prism"
-        window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 620, height: 420)
-        window.setFrameAutosaveName("PrismMainWindow")
-        super.init(window: window)
-        window.delegate = self
-
-        let title = NSTextField(labelWithString: "账号管理")
-        title.font = .boldSystemFont(ofSize: 24)
-        let explanation = NSTextField(wrappingLabelWithString:
-            "重命名只改变 Prism 中显示的名称。删除只移除本机钥匙串中的账号备份。")
-        explanation.maximumNumberOfLines = 3
-        explanation.alignment = .left
-        explanation.textColor = .secondaryLabelColor
-
-        rows.orientation = .vertical
-        rows.alignment = .leading
-        rows.spacing = 0
-        rows.translatesAutoresizingMaskIntoConstraints = false
-        let scroll = NSScrollView()
-        scroll.hasVerticalScroller = true
-        scroll.drawsBackground = false
-        scroll.borderType = .noBorder
-        scroll.wantsLayer = true
-        scroll.layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.55).cgColor
-        scroll.layer?.cornerRadius = 10
-        scroll.layer?.borderWidth = 0.5
-        scroll.layer?.borderColor = NSColor.separatorColor.cgColor
-        listDocument.translatesAutoresizingMaskIntoConstraints = false
-        listDocument.addSubview(rows)
-        scroll.documentView = listDocument
-
-        status.textColor = .secondaryLabelColor
-        status.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        status.alignment = .left
-
-        let stack = NSStackView(views: [title, explanation, scroll, status])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 8
-        stack.setCustomSpacing(20, after: explanation)
-        stack.setCustomSpacing(12, after: scroll)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        window.contentView?.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 32),
-            stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 40),
-            stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -40),
-            stack.bottomAnchor.constraint(equalTo: window.contentView!.bottomAnchor, constant: -24),
-            title.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            explanation.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            scroll.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 240),
-            status.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            listDocument.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
-            rows.topAnchor.constraint(equalTo: listDocument.topAnchor),
-            rows.leadingAnchor.constraint(equalTo: listDocument.leadingAnchor),
-            rows.trailingAnchor.constraint(equalTo: listDocument.trailingAnchor),
-            rows.bottomAnchor.constraint(equalTo: listDocument.bottomAnchor)
-        ])
-        window.center()
-        rebuildRows()
-    }
-
-    required init?(coder: NSCoder) { fatalError("Use init(accounts:currentIdentity:onRename:onDelete:onClose:)") }
-
-    func present() {
-        showWindow(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
-    }
-
-    func windowWillClose(_ notification: Notification) { onClose() }
-
-    private func rebuildRows() {
-        for view in rows.arrangedSubviews {
-            rows.removeArrangedSubview(view)
-            view.removeFromSuperview()
-        }
-        if accounts.isEmpty {
-            let empty = NSTextField(labelWithString: "没有已保存的账号")
-            empty.textColor = .secondaryLabelColor
-            empty.alignment = .left
-            rows.addArrangedSubview(empty)
-            empty.widthAnchor.constraint(equalTo: rows.widthAnchor, constant: -32).isActive = true
-            empty.heightAnchor.constraint(equalToConstant: 72).isActive = true
-            return
-        }
-        for (index, account) in accounts.enumerated() {
-            let row = AccountRowView(frame: .zero)
-            row.orientation = .horizontal
-            row.alignment = .centerY
-            row.spacing = 12
-            row.edgeInsets = NSEdgeInsets(top: 10, left: 16, bottom: 10, right: 16)
-            rows.addArrangedSubview(row)
-            row.widthAnchor.constraint(equalTo: rows.widthAnchor).isActive = true
-            row.heightAnchor.constraint(greaterThanOrEqualToConstant: 58).isActive = true
-
-            let indicator = NSView()
-            indicator.wantsLayer = true
-            indicator.layer?.cornerRadius = 4
-            indicator.layer?.backgroundColor = account.identity == currentIdentity
-                ? NSColor.controlAccentColor.cgColor : NSColor.clear.cgColor
-            indicator.widthAnchor.constraint(equalToConstant: 8).isActive = true
-            indicator.heightAnchor.constraint(equalToConstant: 8).isActive = true
-            indicator.setAccessibilityElement(false)
-            row.addArrangedSubview(indicator)
-
-            if editingIdentity == account.identity {
-                let field = NSTextField(string: account.label)
-                field.identifier = NSUserInterfaceItemIdentifier(account.identity)
-                field.setAccessibilityLabel("新的账号名称")
-                field.widthAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
-                let save = actionButton("保存", #selector(saveRename(_:)), identity: account.identity)
-                let cancel = actionButton("取消", #selector(cancelRename(_:)), identity: account.identity)
-                row.addArrangedSubview(field)
-                row.addArrangedSubview(save)
-                row.addArrangedSubview(cancel)
-                DispatchQueue.main.async { field.selectText(nil) }
-            } else {
-                let label = NSTextField(labelWithString: account.label)
-                label.font = .systemFont(ofSize: 15, weight: .medium)
-                label.lineBreakMode = .byTruncatingMiddle
-                label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-                label.widthAnchor.constraint(greaterThanOrEqualToConstant: 220).isActive = true
-                label.setAccessibilityLabel(account.label +
-                    (account.identity == currentIdentity ? "，当前账号" : ""))
-                row.addArrangedSubview(label)
-                let spacer = NSView()
-                spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-                row.addArrangedSubview(spacer)
-                let rename = actionButton("重命名", #selector(beginRename(_:)), identity: account.identity)
-                let delete = actionButton("删除", #selector(deleteAccount(_:)), identity: account.identity,
-                                          destructive: true)
-                row.addArrangedSubview(rename)
-                row.addArrangedSubview(delete)
-            }
-            for view in row.arrangedSubviews { if let button = view as? NSButton { button.isEnabled = !working } }
-            if index < accounts.count - 1 {
-                let separator = NSBox()
-                separator.boxType = .separator
-                rows.addArrangedSubview(separator)
-                separator.widthAnchor.constraint(equalTo: rows.widthAnchor, constant: -32).isActive = true
-            }
-        }
-    }
-
-    private func actionButton(_ title: String, _ action: Selector, identity: String,
-                              destructive: Bool = false) -> NSButton {
-        let button = NSButton(title: title, target: self, action: action)
-        button.isBordered = false
-        button.contentTintColor = destructive ? .systemRed : .controlAccentColor
-        button.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium)
-        button.identifier = NSUserInterfaceItemIdentifier(identity)
-        button.setAccessibilityLabel((destructive ? "删除 " : "重命名 ") +
-            (accounts.first(where: { $0.identity == identity })?.label ?? "账号"))
-        return button
-    }
-
-    @objc private func beginRename(_ sender: NSButton) {
-        guard !working, let identity = sender.identifier?.rawValue else { return }
-        editingIdentity = identity
-        status.stringValue = ""
-        rebuildRows()
-    }
-
-    @objc private func cancelRename(_ sender: NSButton) {
-        editingIdentity = nil
-        status.stringValue = ""
-        rebuildRows()
-    }
-
-    @objc private func saveRename(_ sender: NSButton) {
-        guard !working, let identity = sender.identifier?.rawValue else { return }
-        let fields = rows.arrangedSubviews.compactMap { $0 as? NSStackView }
-            .flatMap { $0.arrangedSubviews }.compactMap { $0 as? NSTextField }
-        guard let field = fields.first(where: { $0.identifier?.rawValue == identity }) else { return }
-        let label = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !label.isEmpty, label.count <= 80,
-              label.rangeOfCharacter(from: .controlCharacters) == nil else {
-            status.stringValue = "账号名称应为 1–80 个字符，且不能包含控制字符。"
-            NSSound.beep()
-            return
-        }
-        runOperation(success: "账号已重命名") { try await self.onRename(identity, label) }
-    }
-
-    @objc private func deleteAccount(_ sender: NSButton) {
-        guard !working, let identity = sender.identifier?.rawValue,
-              let account = accounts.first(where: { $0.identity == identity }) else { return }
-        let name = NSTextField(labelWithString: account.label)
-        name.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        name.alignment = .center
-        name.isSelectable = true
-        name.setAccessibilityLabel("将删除备份的账号名称，可复制")
-        name.widthAnchor.constraint(equalToConstant: 320).isActive = true
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "删除这个账号备份？"
-        alert.informativeText = account.identity == currentIdentity
-            ? "只会从 Prism 钥匙串中删除备份，不会退出当前登录。之后需要重新保存，才能从其他账号切回。"
-            : "删除后不能再从 Prism 切换到这个账号，需要重新添加或登录。"
-        alert.accessoryView = name
-        alert.addButton(withTitle: "取消")
-        let delete = alert.addButton(withTitle: "删除备份")
-        delete.hasDestructiveAction = true
-        guard alert.runModal() == .alertSecondButtonReturn else { return }
-        runOperation(success: "账号备份已删除") { try await self.onDelete(account.identity) }
-    }
-
-    private func runOperation(success: String,
-                              operation: @escaping () async throws -> [SavedAccount]) {
-        working = true
-        status.stringValue = "正在保存…"
-        rebuildRows()
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                accounts = try await operation()
-                editingIdentity = nil
-                status.stringValue = success
-            } catch {
-                status.stringValue = (error as? SwitchError)?.message ?? "操作失败，请稍后再试。"
-                NSSound.beep()
-            }
-            working = false
-            rebuildRows()
-        }
-    }
-}
-
 @MainActor
 final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var status: NSStatusItem!
@@ -383,7 +96,6 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var busy = false
     private let updates = AppUpdates()
     private var aboutWindow: AboutWindow?
-    private var accountManager: AccountManagerWindow?
     private var updateItem: NSMenuItem?
     private var refreshTimer: Timer?
     private var loginTask: Task<Void, Never>?
@@ -392,12 +104,15 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var accountStatusItem: NSMenuItem?
     private var authorizationItem: NSMenuItem?
     private var accountSeparator: NSMenuItem?
+    private let statusBarUsagePreference = StatusBarUsagePreference()
     private lazy var usage = UsageMonitor(load: { [weak self] in
         guard let self else { throw CancellationError() }
         let book = try await Task.detached { try KeychainVault().load(allowInteraction: false) }.value
         try Task.checkCancellation()
         return try UsageAccounts(book: book, current: self.runtime.currentAuth())
-    }, fetch: { auth in try await UsageClient().fetch(auth) })
+    }, fetch: { auth in try await UsageClient().fetch(auth) }, statusBarUsageEnabled: { [weak self] in
+        self?.statusBarUsagePreference.mode != .off
+    })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do { try runtime.lock() }
@@ -417,7 +132,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updates.start()
         usage.onChange = { [weak self] in self?.rebuildMenu() }
         rebuildMenu()
-        let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 15, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 self.usage.refresh()
@@ -461,8 +176,37 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         accountSeparator = .separator()
         menu.addItem(accountSeparator!)
         addItem("添加账号…", action: #selector(addAccount), to: menu)
-        addItem("保存当前账号…", action: #selector(saveCurrent), to: menu)
-        addItem("管理账号…", action: #selector(manageAccounts), to: menu)
+        let savedAccounts = usage.accounts.filter { usage.savedIdentities.contains($0.identity) }
+        let deleteAccountsItem = addItem("删除账号", to: menu)
+        deleteAccountsItem.isEnabled = !savedAccounts.isEmpty && !busy
+            && !updates.installationGate.installationRequested
+        let deleteAccountsMenu = NSMenu()
+        for account in savedAccounts {
+            let item = NSMenuItem(title: account.label, action: #selector(deleteSavedAccount(_:)),
+                                  keyEquivalent: "")
+            item.target = self
+            item.representedObject = account.identity
+            item.attributedTitle = accountMenuTitle(account.label,
+                workspace: account.isWorkspaceAccount, bold: false)
+            item.isEnabled = !busy && !updates.installationGate.installationRequested
+            item.setAccessibilityLabel("删除账号备份 " + account.label
+                + (account.isWorkspaceAccount ? "，团队账号" : ""))
+            deleteAccountsMenu.addItem(item)
+        }
+        deleteAccountsItem.submenu = deleteAccountsMenu
+        let statusBarUsageItem = addItem("状态栏额度", to: menu)
+        statusBarUsageItem.isEnabled = !busy && !updates.installationGate.installationRequested
+        let statusBarUsageMenu = NSMenu()
+        for mode in StatusBarUsageMode.allCases {
+            let item = NSMenuItem(title: mode.menuTitle, action: #selector(setStatusBarUsageMode(_:)),
+                                  keyEquivalent: "")
+            item.target = self
+            item.representedObject = mode.rawValue
+            item.state = mode == statusBarUsagePreference.mode ? .on : .off
+            item.isEnabled = !busy && !updates.installationGate.installationRequested
+            statusBarUsageMenu.addItem(item)
+        }
+        statusBarUsageItem.submenu = statusBarUsageMenu
         menu.addItem(.separator())
         addItem("关于 Prism…", action: #selector(about), to: menu)
         updateItem = addItem(updates.menuTitle, action: #selector(checkForUpdates), to: menu)
@@ -471,7 +215,6 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         quit.keyEquivalent = "q"
         quit.keyEquivalentModifierMask = .command
         status.menu = menu
-        status.button?.title = busy ? "处理中…" : (status.button?.image == nil ? "账号" : "")
         status.button?.toolTip = nil
         updateUsageItems()
     }
@@ -485,8 +228,21 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return item
     }
 
+    private func accountMenuTitle(_ title: String, workspace: Bool, bold: Bool) -> NSAttributedString {
+        let font = bold ? NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+            : NSFont.menuFont(ofSize: NSFont.systemFontSize)
+        let result = NSMutableAttributedString(string: title, attributes: [.font: font])
+        guard workspace else { return result }
+        result.append(NSAttributedString(string: "  团队", attributes: [
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium),
+            .foregroundColor: NSColor.secondaryLabelColor
+        ]))
+        return result
+    }
+
     private func updateUsageItems() {
         guard let menu = status.menu, let accountSeparator else { return }
+        updateStatusBarTitle()
         let actionsAllowed = !busy && !updates.installationGate.installationRequested
         updateItem?.title = updates.menuTitle
         updateItem?.isHidden = updates.availableVersion == nil
@@ -535,7 +291,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let rows = accountItems[account.identity] else { continue }
             let current = account.identity == usage.currentIdentity
             let state = usage.states[account.identity]
-            var badges: [String] = current ? ["当前"] : []
+            var badges: [String] = []
             if let failure = state?.failure { badges.append(failureTitle(failure)) }
             let suffix = badges.isEmpty ? "" : "   " + badges.joined(separator: " · ")
             rows[0].title = account.label + suffix
@@ -543,11 +299,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let expired = state?.failure == .expired
             rows[0].action = expired && !current ? #selector(reauthenticateAccount(_:)) : #selector(switchAccount(_:))
             rows[0].isEnabled = actionsAllowed && !current && usage.savedIdentities.contains(account.identity)
-            rows[0].attributedTitle = nil
-            if current {
-                rows[0].attributedTitle = NSAttributedString(string: rows[0].title,
-                    attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)])
-            }
+            rows[0].attributedTitle = accountMenuTitle(rows[0].title,
+                workspace: account.isWorkspaceAccount, bold: current)
             let pending = state?.value != nil ? "暂无额度信息" : (state?.failure != nil ? "暂时无法查看额度" : (usage.refreshing ? "正在更新额度…" : "额度尚未更新"))
             let titles = [
                 windowTitle("5 小时", state?.value?.fiveHour, failed: state?.failure != nil, pending: pending, now: now),
@@ -559,9 +312,33 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     attributes: [.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)])
             }
             // Keep full labels available to VoiceOver without mouse-hover popups.
-            rows[0].setAccessibilityLabel(account.label + (current ? "，当前账号" : "") + "，"
+            rows[0].setAccessibilityLabel(account.label
+                + (account.isWorkspaceAccount ? "，团队账号" : "")
+                + (current ? "，当前账号" : "") + "，"
                 + titles.joined(separator: "，") + (state?.failure.map { "，" + $0.message } ?? ""))
         }
+    }
+
+    private func updateStatusBarTitle() {
+        guard let button = status.button else { return }
+        if busy {
+            button.title = "处理中…"
+            return
+        }
+        let currentUsage = usage.currentIdentity.flatMap { usage.states[$0]?.value }
+        button.title = StatusBarUsageTitle.make(mode: statusBarUsagePreference.mode, usage: currentUsage)
+            ?? (button.image == nil ? "账号" : "")
+        let quota = StatusBarUsageTitle.make(mode: statusBarUsagePreference.mode, usage: currentUsage)
+        button.setAccessibilityLabel(["Prism — ChatGPT / Codex 账号切换", quota]
+            .compactMap { $0 }.joined(separator: "，"))
+    }
+
+    @objc private func setStatusBarUsageMode(_ sender: NSMenuItem) {
+        guard !busy, let value = sender.representedObject as? String,
+              let mode = StatusBarUsageMode(rawValue: value) else { return }
+        statusBarUsagePreference.mode = mode
+        usage.statusBarUsageModeDidChange()
+        rebuildMenu()
     }
 
     private func failureTitle(_ failure: UsageFailure) -> String {
@@ -622,62 +399,39 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    @objc private func saveCurrent() {
+    @objc private func deleteSavedAccount(_ sender: NSMenuItem) {
+        guard !busy, let identity = sender.representedObject as? String,
+              usage.savedIdentities.contains(identity),
+              let account = usage.accounts.first(where: { $0.identity == identity }) else { return }
+        let name = NSTextField(wrappingLabelWithString: account.label)
+        name.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+        name.alignment = .center
+        name.maximumNumberOfLines = 2
+        name.lineBreakMode = .byCharWrapping
+        name.isSelectable = true
+        name.setAccessibilityLabel("将删除备份的账号名称，可复制")
+        name.translatesAutoresizingMaskIntoConstraints = false
+        let nameContainer = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 44))
+        nameContainer.addSubview(name)
+        NSLayoutConstraint.activate([
+            name.leadingAnchor.constraint(equalTo: nameContainer.leadingAnchor),
+            name.trailingAnchor.constraint(equalTo: nameContainer.trailingAnchor),
+            name.centerYAnchor.constraint(equalTo: nameContainer.centerYAnchor)
+        ])
+        let alert = makeAlert("删除这个账号备份？", account.identity == usage.currentIdentity
+            ? "只会删除 Prism 钥匙串中的备份，不会退出当前登录。之后切换账号时，Prism 仍会按安全流程保存离开账号的最新认证。"
+            : "删除后不能再从 Prism 切换到这个账号，需要重新添加或登录。")
+        alert.alertStyle = .warning
+        alert.accessoryView = nameContainer
+        alert.addButton(withTitle: "取消")
+        let delete = alert.addButton(withTitle: "删除备份")
+        delete.hasDestructiveAction = true
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
         perform { [self] in
-            let file = try runtime.authFile()
             var book = try vault.load()
-            guard let current = try file.read() else { throw SwitchError("还没有可保存的账号。请先登录 ChatGPT 或 Codex，再试一次。") }
-            book.remember(try AuthSnapshot(current))
+            try book.remove(identity: identity)
             try vault.save(book)
-            notify("账号已保存", "以后可以从 Prism 切换回这个账号。")
         }
-    }
-
-    @objc private func manageAccounts() {
-        if let accountManager {
-            accountManager.present()
-            return
-        }
-        guard !busy, !usage.accounts.filter({ usage.savedIdentities.contains($0.identity) }).isEmpty else {
-            notify("还没有可管理的账号", "请先保存或添加账号。")
-            return
-        }
-        let saved = usage.accounts.filter { usage.savedIdentities.contains($0.identity) }
-        let manager = AccountManagerWindow(accounts: saved, currentIdentity: usage.currentIdentity,
-            onRename: { [weak self] identity, label in
-                guard let self else { throw CancellationError() }
-                return try await self.updateSavedAccounts { book in
-                    try book.rename(identity: identity, to: label)
-                }
-            }, onDelete: { [weak self] identity in
-                guard let self else { throw CancellationError() }
-                return try await self.updateSavedAccounts { book in
-                    try book.remove(identity: identity)
-                }
-            }, onClose: { [weak self] in self?.accountManager = nil })
-        accountManager = manager
-        manager.present()
-    }
-
-    private func updateSavedAccounts(_ mutation: (inout AccountBook) throws -> Void) async throws -> [SavedAccount] {
-        guard !busy, updates.installationGate.beginAccountOperation() else {
-            throw SwitchError("Prism 正在处理其他操作，请稍后再试。")
-        }
-        busy = true
-        aboutWindow?.refresh()
-        usage.pause()
-        rebuildMenu()
-        defer {
-            busy = false
-            updates.installationGate.endAccountOperation()
-            usage.resume()
-            aboutWindow?.refresh()
-            rebuildMenu()
-        }
-        var book = try vault.load()
-        try mutation(&book)
-        try vault.save(book)
-        return book.accounts
     }
 
     @objc private func switchAccount(_ sender: NSMenuItem) {

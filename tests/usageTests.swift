@@ -72,6 +72,28 @@ func runUsageTests() async throws {
     """)
     try requireUsage(normal.fiveHour?.remainingPercent == 79, "fractional percent must not overstate remaining")
     try requireUsage(normal.week?.remainingPercent == 0, "over-quota clamps at zero")
+    try requireUsage(StatusBarUsageTitle.make(mode: .off, usage: normal) == nil,
+                     "status bar usage defaults to hidden output")
+    try requireUsage(StatusBarUsageTitle.make(mode: .fiveHour, usage: normal) == "5h 79%",
+                     "five-hour status title")
+    try requireUsage(StatusBarUsageTitle.make(mode: .week, usage: normal) == "7d 0%",
+                     "weekly status title uses compact seven-day label")
+    try requireUsage(StatusBarUsageTitle.make(mode: .both, usage: normal) == "5h 79% · 7d 0%",
+                     "combined status title")
+    let partialUsage = AccountUsage(fiveHour: normal.fiveHour, week: nil)
+    try requireUsage(StatusBarUsageTitle.make(mode: .both, usage: partialUsage) == "5h 79%" &&
+                     StatusBarUsageTitle.make(mode: .week, usage: partialUsage) == nil,
+                     "status title omits unavailable windows")
+
+    let defaultsName = "StatusBarUsageTests-" + UUID().uuidString
+    let defaults = UserDefaults(suiteName: defaultsName)!
+    defer { defaults.removePersistentDomain(forName: defaultsName) }
+    let preference = StatusBarUsagePreference(defaults: defaults)
+    try requireUsage(preference.mode == .off, "status bar usage is off by default")
+    preference.mode = .both
+    try requireUsage(preference.mode == .both, "status bar usage preference persists")
+    defaults.set("invalid", forKey: StatusBarUsagePreference.key)
+    try requireUsage(preference.mode == .off, "invalid status bar preference falls back to off")
     let swapped = try decodeUsage("""
     {"rate_limit":{"primary_window":{"used_percent":15,"limit_window_seconds":604800},
     "secondary_window":{"used_percent":25,"limit_window_seconds":18000}}}
@@ -123,21 +145,23 @@ func runUsageTests() async throws {
     let unsaved = try UsageAccounts(book: book, current: usageAuth("SIMULATED-new").data)
     try requireUsage(unsaved.accounts.count == 3 && !unsaved.savedIdentities.contains(unsaved.currentIdentity!), "unsaved current account is visible but not switchable")
     var clock = Date(timeIntervalSince1970: 1_800_000_000)
+    var statusBarUsageEnabled = false
     let probe = UsageProbe()
     await probe.reply(a.identity, .success(normal)); await probe.reply(b.identity, .success(swapped))
-    let monitor = UsageMonitor(load: { loaded }, fetch: { try await probe.fetch($0) }, now: { clock })
+    let monitor = UsageMonitor(load: { loaded }, fetch: { try await probe.fetch($0) }, now: { clock },
+        statusBarUsageEnabled: { statusBarUsageEnabled }, jitter: { 0 })
     monitor.refreshOnMenuOpen(); monitor.refreshOnMenuOpen()
     try await waitForUsage { !monitor.refreshing }
     let firstCount = await probe.count()
     try requireUsage(firstCount == 2, "no overlapping refresh batches")
     try requireUsage(monitor.states[a.identity]?.value == normal && monitor.states[b.identity]?.value == swapped, "per-account cache isolation")
     monitor.refresh()
-    try requireUsage(!monitor.refreshing, "cached batch is not polled before five minutes")
+    try requireUsage(!monitor.refreshing, "fresh accounts are not polled by the scheduler")
     monitor.refreshOnMenuOpen()
     try requireUsage(!monitor.refreshing, "reopening immediately uses cached usage")
-    clock = clock.addingTimeInterval(29)
+    clock = clock.addingTimeInterval(59)
     monitor.refreshOnMenuOpen()
-    try requireUsage(!monitor.refreshing, "menu cooldown lasts thirty seconds after completion")
+    try requireUsage(!monitor.refreshing, "current-account menu threshold lasts sixty seconds")
     let cachedCount = await probe.count()
     try requireUsage(cachedCount == firstCount, "repeated opens during cooldown send no requests")
     clock = clock.addingTimeInterval(1)
@@ -145,13 +169,49 @@ func runUsageTests() async throws {
     monitor.refreshOnMenuOpen()
     try await waitForUsage { !monitor.refreshing }
     let reopenedCount = await probe.count()
-    try requireUsage(reopenedCount == firstCount + 2,
-        "menu refresh starts at thirty seconds and coalesces in-flight requests")
+    try requireUsage(reopenedCount == firstCount + 1,
+        "menu refreshes only the stale current account and coalesces in-flight requests")
     monitor.refreshOnMenuOpen()
     try requireUsage(!monitor.refreshing, "completed menu refresh starts a new cooldown")
-    clock = clock.addingTimeInterval(300)
-    await probe.reply(a.identity, .failure(.expired)); await probe.reply(b.identity, .success(normal))
+
+    clock = clock.addingTimeInterval(239)
+    monitor.refreshOnMenuOpen()
+    try await waitForUsage { !monitor.refreshing }
+    let beforeBackgroundThresholdCount = await probe.count()
+    try requireUsage(beforeBackgroundThresholdCount == reopenedCount + 1,
+        "menu refreshes only the stale current account before the background threshold")
+    clock = clock.addingTimeInterval(1)
+    monitor.refreshOnMenuOpen()
+    try await waitForUsage { !monitor.refreshing }
+    let fiveMinuteMenuCount = await probe.count()
+    try requireUsage(fiveMinuteMenuCount == beforeBackgroundThresholdCount + 1,
+        "menu refreshes the background account at five minutes")
+
+    clock = clock.addingTimeInterval(178)
     monitor.refresh()
+    try requireUsage(!monitor.refreshing, "hidden status uses a three-minute current-account interval")
+    clock = clock.addingTimeInterval(1)
+    monitor.refresh()
+    try await waitForUsage { !monitor.refreshing }
+    let hiddenStatusCount = await probe.count()
+    try requireUsage(hiddenStatusCount == fiveMinuteMenuCount + 1,
+        "three-minute refresh updates only the current account")
+
+    statusBarUsageEnabled = true
+    monitor.statusBarUsageModeDidChange()
+    try requireUsage(!monitor.refreshing, "enabling status display keeps a fresh current value")
+    clock = clock.addingTimeInterval(59)
+    monitor.refresh()
+    try requireUsage(!monitor.refreshing, "visible status waits one minute")
+    clock = clock.addingTimeInterval(1)
+    monitor.refresh()
+    try await waitForUsage { !monitor.refreshing }
+    let visibleStatusCount = await probe.count()
+    try requireUsage(visibleStatusCount == hiddenStatusCount + 1,
+        "visible status refreshes the current account every minute")
+
+    await probe.reply(a.identity, .failure(.expired)); await probe.reply(b.identity, .success(normal))
+    monitor.refresh(force: true)
     try await waitForUsage { !monitor.refreshing }
     try requireUsage(monitor.states[a.identity]?.value == normal && monitor.states[a.identity]?.failure == .expired &&
         monitor.states[b.identity]?.value == normal, "failed account retains old value; others update")
@@ -164,6 +224,29 @@ func runUsageTests() async throws {
     monitor.refresh(force: true)
     try await waitForUsage { !monitor.refreshing }
     try requireUsage(monitor.states[a.identity]?.value == swapped && monitor.states[a.identity]?.failure == nil, "newly saved token can recover immediately")
+
+    await probe.reply(a.identity, .failure(.unavailable))
+    for (failureNumber, delay) in [300, 600, 1200, 1800].enumerated() {
+        monitor.refresh(force: true)
+        try await waitForUsage { !monitor.refreshing }
+        try requireUsage(monitor.states[a.identity]?.retryAt == clock.addingTimeInterval(TimeInterval(delay)),
+            "ordinary failure backoff step \(failureNumber + 1)")
+        if failureNumber == 0 {
+            statusBarUsageEnabled = false
+            monitor.statusBarUsageModeDidChange()
+            try requireUsage(monitor.states[a.identity]?.nextRefreshAt == monitor.states[a.identity]?.retryAt,
+                "status display changes cannot bypass account backoff")
+            statusBarUsageEnabled = true
+            monitor.statusBarUsageModeDidChange()
+        }
+        clock = clock.addingTimeInterval(TimeInterval(delay))
+    }
+    await probe.reply(a.identity, .success(normal))
+    monitor.refresh(force: true)
+    try await waitForUsage { !monitor.refreshing }
+    try requireUsage(monitor.states[a.identity]?.consecutiveFailures == 0,
+        "successful refresh resets ordinary failure backoff")
+
     await probe.reply(a.identity, .failure(.throttled(900)))
     monitor.refresh(force: true)
     try await waitForUsage { !monitor.refreshing }
@@ -182,6 +265,40 @@ func runUsageTests() async throws {
     monitor.pause()
     monitor.refresh(force: true)
     try requireUsage(!monitor.refreshing, "switch transaction pauses refresh")
+
+    let resetProbe = UsageProbe()
+    let resetUsage = AccountUsage(
+        fiveHour: UsageWindow(usedPercent: 20, seconds: 18_000,
+                              resetsAt: clock.timeIntervalSince1970 + 100),
+        week: nil)
+    await resetProbe.reply(a.identity, .success(resetUsage))
+    let resetMonitor = UsageMonitor(load: { try UsageAccounts(book: book, current: a.data) },
+        fetch: { try await resetProbe.fetch($0) }, now: { clock }, jitter: { 0 })
+    resetMonitor.refresh()
+    try await waitForUsage { !resetMonitor.refreshing }
+    let resetInitialCount = await resetProbe.count()
+    clock = clock.addingTimeInterval(114)
+    resetMonitor.refresh()
+    try requireUsage(!resetMonitor.refreshing, "reset confirmation waits until fifteen seconds after reset")
+    clock = clock.addingTimeInterval(1)
+    resetMonitor.refresh()
+    try await waitForUsage { !resetMonitor.refreshing }
+    let firstResetConfirmationCount = await resetProbe.count()
+    try requireUsage(firstResetConfirmationCount == resetInitialCount + 1,
+        "first reset confirmation runs fifteen seconds after reset")
+    for attempt in 2...3 {
+        clock = clock.addingTimeInterval(60)
+        resetMonitor.refresh()
+        try await waitForUsage { !resetMonitor.refreshing }
+        let resetConfirmationCount = await resetProbe.count()
+        try requireUsage(resetConfirmationCount == resetInitialCount + attempt,
+            "bounded reset confirmation attempt \(attempt)")
+    }
+    clock = clock.addingTimeInterval(60)
+    resetMonitor.refresh()
+    try requireUsage(!resetMonitor.refreshing,
+        "reset confirmation returns to the normal interval after three attempts")
+    resetMonitor.pause()
 
     // Deliberately ignore cancellation in this fake transport: the old response still
     // must not overwrite the new generation after a switch completes.

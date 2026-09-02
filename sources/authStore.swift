@@ -15,6 +15,7 @@ struct AuthSnapshot {
     let accountID: String
     let accessToken: String
     let email: String?
+    let isWorkspaceAccount: Bool?
 
     init(_ data: Data) throws {
         guard data.count < 1_048_576,
@@ -33,8 +34,19 @@ struct AuthSnapshot {
         self.accountID = account
         self.accessToken = access
         self.email = Self.email(from: claims)
+        self.isWorkspaceAccount = Self.workspaceAccount(from: claims)
         self.identity = SHA256.hash(data: Data((account + "\u{0}" + subject).utf8))
             .map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func workspaceAccount(from claims: [String: Any]) -> Bool? {
+        guard let auth = claims["https://api.openai.com/auth"] as? [String: Any],
+              let raw = auth["chatgpt_plan_type"] as? String else { return nil }
+        switch raw.lowercased() {
+        case "team", "business", "enterprise", "edu", "education": return true
+        case "free", "plus", "pro": return false
+        default: return nil
+        }
     }
 
     private static func email(from claims: [String: Any]) -> String? {
@@ -66,6 +78,8 @@ struct SavedAccount: Codable {
     var label: String
     var auth: Data
     var hasCustomLabel: Bool?
+
+    var isWorkspaceAccount: Bool { (try? AuthSnapshot(auth).isWorkspaceAccount) == true }
 }
 
 struct AccountBook: Codable {
@@ -78,8 +92,9 @@ struct AccountBook: Codable {
             if let label {
                 accounts[index].label = label
                 accounts[index].hasCustomLabel = false
-            } else if accounts[index].hasCustomLabel != true, let email = snapshot.email {
+            } else if let email = snapshot.email {
                 accounts[index].label = email
+                accounts[index].hasCustomLabel = false
             }
         } else {
             accounts.append(SavedAccount(identity: snapshot.identity,
@@ -88,22 +103,9 @@ struct AccountBook: Codable {
         }
     }
 
-    mutating func rename(identity: String, to proposedLabel: String) throws {
-        let label = proposedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !label.isEmpty, label.count <= 80,
-              label.rangeOfCharacter(from: .controlCharacters) == nil else {
-            throw SwitchError("账号名称应为 1–80 个字符，且不能包含控制字符。")
-        }
-        guard let index = accounts.firstIndex(where: { $0.identity == identity }) else {
-            throw SwitchError("找不到这个账号，请重新打开账号管理。")
-        }
-        accounts[index].label = label
-        accounts[index].hasCustomLabel = true
-    }
-
     mutating func remove(identity: String) throws {
         guard let index = accounts.firstIndex(where: { $0.identity == identity }) else {
-            throw SwitchError("找不到这个账号，请重新打开账号管理。")
+            throw SwitchError("找不到这个账号，请重新打开菜单。")
         }
         accounts.remove(at: index)
     }

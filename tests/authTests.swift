@@ -11,9 +11,13 @@ private func rejects(_ label: String, _ operation: () throws -> Void) throws {
 }
 
 private func fakeAuth(account: String, subject: String = "test-person", revision: String = "initial",
-                      email: String? = nil) throws -> Data {
-    var payloadClaims = ["sub": subject]
+                      email: String? = nil, plan: String? = nil) throws -> Data {
+    var payloadClaims: [String: Any] = ["sub": subject]
     if let email { payloadClaims["email"] = email }
+    if let plan {
+        payloadClaims["https://api.openai.com/auth"] = ["chatgpt_plan_type": plan,
+            "chatgpt_account_id": account]
+    }
     let claims = try JSONSerialization.data(withJSONObject: payloadClaims)
     let payload = claims.base64EncodedString().replacingOccurrences(of: "=", with: "")
         .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
@@ -60,6 +64,24 @@ func runTests() throws {
 
     let emailAuth = try AuthSnapshot(fakeAuth(account: "simulated-email", email: "person@example.com"))
     try check(emailAuth.email == "person@example.com", "email is read from the ID token")
+    try check(emailAuth.isWorkspaceAccount == nil, "missing plan type remains unknown")
+    for plan in ["team", "business", "enterprise", "edu", "education"] {
+        let workspace = try AuthSnapshot(fakeAuth(account: "simulated-" + plan, plan: plan))
+        try check(workspace.isWorkspaceAccount == true, plan + " is classified as a workspace account")
+    }
+    for plan in ["free", "plus", "pro"] {
+        let personal = try AuthSnapshot(fakeAuth(account: "simulated-" + plan, plan: plan))
+        try check(personal.isWorkspaceAccount == false, plan + " is classified as a personal account")
+    }
+    try check(try AuthSnapshot(fakeAuth(account: "simulated-unknown-plan", plan: "future-plan"))
+        .isWorkspaceAccount == nil, "unknown plan type is not guessed")
+    let sharedEmailPersonal = try AuthSnapshot(fakeAuth(account: "simulated-personal-workspace",
+        email: "shared@example.com", plan: "plus"))
+    let sharedEmailTeam = try AuthSnapshot(fakeAuth(account: "simulated-team-workspace",
+        email: "shared@example.com", plan: "business"))
+    try check(sharedEmailPersonal.identity != sharedEmailTeam.identity
+        && sharedEmailPersonal.isWorkspaceAccount == false && sharedEmailTeam.isWorkspaceAccount == true,
+        "same email keeps personal and workspace accounts distinct")
     let invalidEmail = try AuthSnapshot(fakeAuth(account: "simulated-invalid-email", email: "not-an-email"))
     try check(invalidEmail.email == nil, "invalid email is ignored")
     let malformedEmail = try AuthSnapshot(fakeAuth(account: "simulated-malformed-email", email: "one@two@example.com"))
@@ -78,14 +100,12 @@ func runTests() throws {
     namedBook.remember(invalidEmail)
     try check(namedBook.accounts.last?.label == "账号 2", "missing email uses numbered label")
 
-    try namedBook.rename(identity: emailAuth.identity, to: "  工作账号  ")
-    try check(namedBook.accounts.first?.label == "工作账号" && namedBook.accounts.first?.hasCustomLabel == true,
-              "rename trims and marks a durable custom label")
+    namedBook.accounts[0].label = "工作账号"
+    namedBook.accounts[0].hasCustomLabel = true
     namedBook.remember(refreshedEmailAuth)
-    try check(namedBook.accounts.first?.label == "工作账号",
-              "refresh never overwrites a user-defined label")
-    try rejects("empty custom label") { try namedBook.rename(identity: emailAuth.identity, to: "  ") }
-    try rejects("missing rename target") { try namedBook.rename(identity: "missing", to: "Name") }
+    try check(namedBook.accounts.first?.label == "updated@example.com" &&
+              namedBook.accounts.first?.hasCustomLabel == false,
+              "refresh replaces a retired custom label with the account email")
 
     var legacyObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(namedBook)) as! [String: Any]
     var legacyAccounts = legacyObject["accounts"] as! [[String: Any]]
@@ -96,6 +116,12 @@ func runTests() throws {
     try check(legacyBook.accounts.count == namedBook.accounts.count &&
               legacyBook.accounts.allSatisfy { $0.hasCustomLabel == nil },
               "keychain records created before custom labels remain decodable")
+    var workspaceBook = AccountBook()
+    workspaceBook.remember(sharedEmailPersonal)
+    workspaceBook.remember(sharedEmailTeam)
+    try check(workspaceBook.accounts.count == 2 && workspaceBook.accounts[0].isWorkspaceAccount == false
+        && workspaceBook.accounts[1].isWorkspaceAccount == true,
+        "saved accounts derive workspace classification from their login snapshot")
 
     var removableBook = namedBook
     let remainingAuth = removableBook.accounts.last!.auth
