@@ -249,18 +249,12 @@ CI 固定使用 `macos-26` arm64，仓库权限只读。测试结果尽可能在
 ### 发布流程
 
 1. 更新 `config/app.xcconfig` 中的三段数字版本 `MARKETING_VERSION`，并递增 `CURRENT_PROJECT_VERSION`。不要在 `info.plist` 或工作流中重复版本。
-2. 编辑根目录 `releaseNotes.md`，合并到 `main` 并确认 CI 通过。
-3. 在待发布提交创建并推送与版本完全匹配的标签：
-
-   ```sh
-   git tag -a vX.Y.Z -m 'Release vX.Y.Z'
-   git push origin vX.Y.Z
-   ```
-
-4. `release.yml` 校验标签和配置，运行测试、归档及签名打包，上传完整附件后公开 Release。
+2. 编辑根目录 `releaseNotes.md`，将发布变更合并到 `main`。
+3. CI 通过后，`autoTag.yml` 检测版本变化，自动为该次已验证提交创建并推送 `vX.Y.Z` 标签。已存在但指向其他提交的同名标签会使流程失败，不会被覆盖。
+4. `release.yml` 确认标签提交已有成功 CI，再校验版本、归档及签名打包，上传完整附件后公开 Release。测试和普通 Release 构建由 CI 负责，发布流程不重复执行。
 5. 发布任务通过 `workflow_call` 调用 `updateFeed.yml`；它读取最新公开稳定 Release，验证附件和签名、防止订阅降级，然后部署到 GitHub Pages。
 
-推送标签即表示确认发布。已有同标签 Release 不会被覆盖；正式发布后需要修改内容时，应发布更高版本和构建号。
+将版本号变更合并到 `main` 即表示确认发布。已有同标签 Release 不会被覆盖；正式发布后需要修改内容时，应发布更高版本和构建号。
 
 可在不构建归档的情况下单独检查版本：
 
