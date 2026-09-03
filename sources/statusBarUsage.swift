@@ -39,7 +39,8 @@ struct StatusBarUsageTitle {
             return "\(kind.label) \(window.remainingPercent)%"
         }
         guard !parts.isEmpty else { return nil }
-        return mode == .brief ? parts.first : parts.joined(separator: " · ")
+        if mode == .brief { return parts.first }
+        return parts.joined(separator: parts.count == 2 ? "\n" : " · ")
     }
 }
 

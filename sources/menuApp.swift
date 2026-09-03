@@ -1,5 +1,39 @@
 import AppKit
 
+private enum StatusBarUsageImage {
+    private static let height: CGFloat = 18
+    private static let iconWidth: CGFloat = 18
+    private static let spacing: CGFloat = 3
+
+    static func make(icon: NSImage?, title: String) -> NSImage? {
+        guard title.split(separator: "\n").count == 2 else { return nil }
+        let font = NSFont.systemFont(ofSize: 9, weight: .medium)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.minimumLineHeight = 9
+        paragraph.maximumLineHeight = 9
+        let text = NSAttributedString(string: title, attributes: [
+            .font: font,
+            .foregroundColor: NSColor.black,
+            .paragraphStyle: paragraph
+        ])
+        let textSize = text.boundingRect(with: NSSize(width: .greatestFiniteMagnitude, height: height),
+            options: [.usesLineFragmentOrigin, .usesFontLeading]).integral.size
+        let textX = icon == nil ? 0 : iconWidth + spacing
+        let image = NSImage(size: NSSize(width: textX + textSize.width, height: height), flipped: true) { _ in
+            if let icon {
+                icon.draw(in: NSRect(x: 0, y: 0, width: iconWidth, height: height), from: .zero,
+                    operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+            }
+            text.draw(with: NSRect(x: textX, y: (height - textSize.height) / 2,
+                                   width: textSize.width, height: textSize.height),
+                      options: [.usesLineFragmentOrigin, .usesFontLeading])
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+}
+
 @MainActor
 private final class LoginWaitPanel: NSObject, NSWindowDelegate {
     private let panel: NSPanel
@@ -104,6 +138,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var accountStatusItem: NSMenuItem?
     private var authorizationItem: NSMenuItem?
     private var accountSeparator: NSMenuItem?
+    private var statusIcon: NSImage?
     private let statusBarUsagePreference = StatusBarUsagePreference()
     private lazy var usage = UsageMonitor(load: { [weak self] in
         guard let self else { throw CancellationError() }
@@ -121,6 +156,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let icon = NSImage(named: "menuIcon") {
             icon.size = NSSize(width: 18, height: 18)
             icon.isTemplate = true
+            statusIcon = icon
             status.button?.image = icon
             status.button?.imagePosition = .imageLeading
         }
@@ -330,13 +366,24 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func updateStatusBarTitle() {
         guard let button = status.button else { return }
         if busy {
+            button.image = statusIcon
+            button.imagePosition = .imageLeading
             button.title = "处理中…"
+            button.font = .menuBarFont(ofSize: 0)
             return
         }
         let currentUsage = usage.currentIdentity.flatMap { usage.states[$0]?.value }
-        button.title = StatusBarUsageTitle.make(mode: statusBarUsagePreference.mode, usage: currentUsage)
-            ?? (button.image == nil ? "账号" : "")
         let quota = StatusBarUsageTitle.make(mode: statusBarUsagePreference.mode, usage: currentUsage)
+        if let quota, let image = StatusBarUsageImage.make(icon: statusIcon, title: quota) {
+            button.title = ""
+            button.image = image
+            button.imagePosition = .imageOnly
+        } else {
+            button.image = statusIcon
+            button.imagePosition = .imageLeading
+            button.title = quota ?? (button.image == nil ? "账号" : "")
+            button.font = .menuBarFont(ofSize: 0)
+        }
         button.setAccessibilityLabel(["Prism — ChatGPT / Codex 账号切换", quota]
             .compactMap { $0 }.joined(separator: "，"))
     }

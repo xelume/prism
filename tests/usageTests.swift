@@ -76,8 +76,8 @@ func runUsageTests() async throws {
                      "status bar usage defaults to hidden output")
     try requireUsage(StatusBarUsageTitle.make(mode: .brief, usage: normal) == "5h 79%",
                      "brief status title uses the shortest available window")
-    try requireUsage(StatusBarUsageTitle.make(mode: .all, usage: normal) == "5h 79% · 7d 0%",
-                     "all status title includes every available window")
+    try requireUsage(StatusBarUsageTitle.make(mode: .all, usage: normal) == "5h 79%\n7d 0%",
+                     "two status windows use separate lines")
     let partialUsage = AccountUsage(fiveHour: normal.fiveHour, week: nil)
     try requireUsage(StatusBarUsageTitle.make(mode: .all, usage: partialUsage) == "5h 79%",
                      "status title omits unavailable windows")
@@ -107,7 +107,7 @@ func runUsageTests() async throws {
     let allWindows = AccountUsage(fiveHour: normal.fiveHour, week: normal.week, month: monthly.month)
     try requireUsage(StatusBarUsageTitle.make(mode: .all, usage: allWindows) ==
                      "5h 79% · 7d 0% · 1mo 87%",
-                     "all status includes monthly usage")
+                     "three status windows stay on one compact line")
 
     let defaultsName = "StatusBarUsageTests-" + UUID().uuidString
     let defaults = UserDefaults(suiteName: defaultsName)!
