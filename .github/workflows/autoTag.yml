@@ -67,5 +67,5 @@ jobs:
 
           GH_TOKEN="$GITHUB_TOKEN" gh workflow run release.yml \
             --repo "$GITHUB_REPOSITORY" \
-            --ref main \
+            --ref "$tag" \
             -f release_tag="$tag"
