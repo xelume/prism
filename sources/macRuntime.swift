@@ -4,7 +4,7 @@ import LocalAuthentication
 import Darwin
 
 final class KeychainVault {
-    static let itemLabel = "Prism"
+    static let itemLabel = "ChatGPT / Codex Account Backups"
     static let labelValues: [String: Any] = [kSecAttrLabel as String: itemLabel]
 
     static func itemValues(for data: Data) -> [String: Any] {

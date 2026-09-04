@@ -34,11 +34,11 @@ private func fakeAuth(account: String, subject: String = "test-person", revision
 func runTests() throws {
     let keychainData = Data("simulated-keychain-data".utf8)
     let keychainValues = KeychainVault.itemValues(for: keychainData)
-    try check(keychainValues[kSecAttrLabel as String] as? String == "Prism",
+    try check(keychainValues[kSecAttrLabel as String] as? String == "ChatGPT / Codex Account Backups",
               "new and existing keychain items use a stable label")
     try check(keychainValues[kSecValueData as String] as? Data == keychainData,
               "keychain updates preserve the encoded account data")
-    try check(KeychainVault.labelValues[kSecAttrLabel as String] as? String == "Prism"
+    try check(KeychainVault.labelValues[kSecAttrLabel as String] as? String == "ChatGPT / Codex Account Backups"
               && KeychainVault.labelValues[kSecValueData as String] == nil,
               "successful reads migrate only the keychain label")
 
