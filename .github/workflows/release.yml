@@ -3,13 +3,19 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
 
 permissions:
   actions: read
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -22,21 +28,26 @@ jobs:
       actions: read
       contents: write
     env:
-      RELEASE_TAG: ${{ github.ref_name }}
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.release_tag || github.ref }}
           persist-credentials: false
+      - name: Resolve release commit
+        id: releaseCommit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Require successful CI for tagged commit
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ steps.releaseCommit.outputs.sha }}
         run: |
-          successful_sha=$(gh run list --workflow CI --commit "$GITHUB_SHA" --event push \
+          successful_sha=$(gh run list --workflow CI --commit "$RELEASE_SHA" --event push \
             --status success --limit 1 --json headSha \
             --jq '.[0].headSha // ""')
-          if [[ "$successful_sha" != "$GITHUB_SHA" ]]; then
-            echo "No successful CI push run found for tagged commit $GITHUB_SHA." >&2
+          if [[ "$successful_sha" != "$RELEASE_SHA" ]]; then
+            echo "No successful CI push run found for tagged commit $RELEASE_SHA." >&2
             exit 1
           fi
       - name: Resolve locked Swift packages
@@ -64,7 +75,7 @@ jobs:
       - name: Preserve release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: prism-${{ github.ref_name }}-macos-arm64
+          name: prism-${{ inputs.release_tag || github.ref_name }}-macos-arm64
           path: |
             build/release/*.dmg
             build/release/SHA256SUMS.txt
