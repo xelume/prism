@@ -81,17 +81,18 @@ func runUsageTests() async throws {
     let partialUsage = AccountUsage(fiveHour: normal.fiveHour, week: nil)
     try requireUsage(StatusBarUsageTitle.make(mode: .all, usage: partialUsage) == "5h 79%",
                      "status title omits unavailable windows")
-    try requireUsage(StatusBarUsageMode.brief.menuTitle == "简略" &&
-                     StatusBarUsageMode.all.menuTitle == "全部",
+    try requireUsage(StatusBarUsageMode.brief.menuTitle == L10n.text("statusBar.mode.brief") &&
+                     StatusBarUsageMode.all.menuTitle == L10n.text("statusBar.mode.all"),
                      "status bar usage menu exposes brief and all modes")
 
     let menuNow = Date(timeIntervalSince1970: 1_999_993_700)
     let utc = TimeZone(secondsFromGMT: 0)!
     try requireUsage(UsageMenuTitle.make(kind: .fiveHour, window: normal.fiveHour!,
-                                         now: menuNow, timeZone: utc) == "5h 79% · 1h45m",
+                                         now: menuNow, timeZone: utc, locale: Locale(identifier: "en_US")) == "5h 79% · 1h45m",
                      "five-hour menu title uses compact countdown")
-    try requireUsage(UsageMenuTitle.make(kind: .week, window: normal.week!,
-                                         now: menuNow, timeZone: utc) == "7d 0% · 5/25 02:13",
+    let weeklyTitle = UsageMenuTitle.make(kind: .week, window: normal.week!, now: menuNow,
+                                          timeZone: utc, locale: Locale(identifier: "en_US"))
+    try requireUsage(weeklyTitle.hasPrefix("7d 0% · ") && weeklyTitle.contains("5/25") && weeklyTitle.contains("02:13"),
                      "weekly menu title uses compact reset date")
 
     let monthly = try decodeUsage("""
@@ -99,8 +100,9 @@ func runUsageTests() async throws {
     """)
     try requireUsage(monthly.month?.remainingPercent == 87 && monthly.fiveHour == nil && monthly.week == nil,
                      "28-to-31-day windows map to monthly usage")
-    try requireUsage(UsageMenuTitle.make(kind: .month, window: monthly.month!,
-                                         now: menuNow, timeZone: utc) == "1mo 87% · 5/25 02:13",
+    let monthlyTitle = UsageMenuTitle.make(kind: .month, window: monthly.month!, now: menuNow,
+                                           timeZone: utc, locale: Locale(identifier: "en_US"))
+    try requireUsage(monthlyTitle.hasPrefix("1mo 87% · ") && monthlyTitle.contains("5/25") && monthlyTitle.contains("02:13"),
                      "monthly menu title uses compact reset date")
     try requireUsage(StatusBarUsageTitle.make(mode: .brief, usage: monthly) == "1mo 87%",
                      "brief status falls back to the shortest available window")

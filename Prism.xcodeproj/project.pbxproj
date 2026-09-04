@@ -35,6 +35,10 @@
 		C180266C84CEC8D8B0380132 /* regressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F10141AD29CEFCF91017FB /* regressionTests.swift */; };
 		C5C60E825BEDFD5EC6E772C5 /* codex-shutdown-fixture in Embed disposable process fixture */ = {isa = PBXBuildFile; fileRef = 04A8572B6184C2B4B0D58127 /* codex-shutdown-fixture */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		C5E8881C7C91085D5EEE8AC3 /* sparkleLicense.txt in Resources */ = {isa = PBXBuildFile; fileRef = 40DD6ABD9CFF084AE6A86880 /* sparkleLicense.txt */; };
+		1A10C0000000000000000001 /* localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A10C0000000000000000003 /* localization.swift */; };
+		1A10C0000000000000000002 /* localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A10C0000000000000000003 /* localization.swift */; };
+		1A10C0000000000000000004 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1A10C0000000000000000005 /* Localizable.xcstrings */; };
+		1A10C0000000000000000006 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1A10C0000000000000000005 /* Localizable.xcstrings */; };
 		CA35C4432598ECEF02DA29CC /* usageMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7AC7CE39F42D06921AEC2CF /* usageMonitor.swift */; };
 		F460C03D0DDD0C1D50E93C0F /* updateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAE87468699F4028786E423 /* updateTests.swift */; };
 		F6D9E0730822984AA0B92EB2 /* authStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7787286C8013A1BF21F48D0A /* authStore.swift */; };
@@ -96,6 +100,8 @@
 		D7573C4D0C061D86F7813BB9 /* generateIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = generateIcons.swift; sourceTree = "<group>"; };
 		E627708161375C0D8AC434EC /* usageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = usageTests.swift; sourceTree = "<group>"; };
 		EFD89C7E1B84EAD505E6F3CB /* info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = info.plist; sourceTree = "<group>"; };
+		1A10C0000000000000000003 /* localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = localization.swift; sourceTree = "<group>"; };
+		1A10C0000000000000000005 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +127,7 @@
 			isa = PBXGroup;
 			children = (
 				596B73E0DA7F040AAF99B86E /* sources */,
+				1A10C0000000000000000005 /* Localizable.xcstrings */,
 				D60409337774CCE94860379A /* tests */,
 				AE6ADACDDE846FF6AA0A8B4A /* assets */,
 				54B3F0C1B29408117926A317 /* scripts */,
@@ -154,6 +161,7 @@
 		596B73E0DA7F040AAF99B86E /* sources */ = {
 			isa = PBXGroup;
 			children = (
+				1A10C0000000000000000003 /* localization.swift */,
 				0A11C0DE0000000000000003 /* accountLogin.swift */,
 				4D651D5DCE72EE4517B77C83 /* accountUsage.swift */,
 				7787286C8013A1BF21F48D0A /* authStore.swift */,
@@ -275,6 +283,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = 0035FE99EA2940F7FA633A58;
@@ -297,6 +306,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1A10C0000000000000000006 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -305,6 +315,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C5E8881C7C91085D5EEE8AC3 /* sparkleLicense.txt in Resources */,
+				1A10C0000000000000000004 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -346,6 +357,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1A10C0000000000000000002 /* localization.swift in Sources */,
 				0A11C0DE0000000000000002 /* accountLogin.swift in Sources */,
 				4DC84B5145CAF3F1E485CDFE /* accountUsage.swift in Sources */,
 				F6D9E0730822984AA0B92EB2 /* authStore.swift in Sources */,
@@ -367,6 +379,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1A10C0000000000000000001 /* localization.swift in Sources */,
 				0A11C0DE0000000000000001 /* accountLogin.swift in Sources */,
 				26FBA7F24836E6B06A378551 /* accountUsage.swift in Sources */,
 				513740E0625A6B74887A084F /* authStore.swift in Sources */,

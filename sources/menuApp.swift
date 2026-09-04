@@ -38,8 +38,8 @@ private enum StatusBarUsageImage {
 private final class LoginWaitPanel: NSObject, NSWindowDelegate {
     private let panel: NSPanel
     private let message = NSTextField(wrappingLabelWithString:
-        "请在浏览器中完成登录。不想继续时可以取消，当前账号不会改变。")
-    private let cancelButton = NSButton(title: "取消登录", target: nil, action: nil)
+        L10n.text("login.wait.message"))
+    private let cancelButton = NSButton(title: L10n.text("login.cancel"), target: nil, action: nil)
     private var finishing = false
     var onCancel: (() -> Void)?
 
@@ -62,7 +62,7 @@ private final class LoginWaitPanel: NSObject, NSWindowDelegate {
         icon.widthAnchor.constraint(equalToConstant: 64).isActive = true
         icon.heightAnchor.constraint(equalToConstant: 64).isActive = true
 
-        let title = NSTextField(labelWithString: "正在等待浏览器登录")
+        let title = NSTextField(labelWithString: L10n.text("login.wait.title"))
         title.font = .boldSystemFont(ofSize: 17)
         title.alignment = .center
         message.alignment = .center
@@ -116,8 +116,8 @@ private final class LoginWaitPanel: NSObject, NSWindowDelegate {
     @objc private func cancel() {
         guard !finishing, cancelButton.isEnabled else { return }
         cancelButton.isEnabled = false
-        cancelButton.title = "正在取消…"
-        message.stringValue = "正在结束这次登录，当前账号和已保存的账号都不会改变。"
+        cancelButton.title = L10n.text("login.canceling")
+        message.stringValue = L10n.text("login.canceling.message")
         onCancel?()
     }
 }
@@ -160,7 +160,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status.button?.image = icon
             status.button?.imagePosition = .imageLeading
         }
-        status.button?.setAccessibilityLabel("Prism — ChatGPT / Codex 账号切换")
+        status.button?.setAccessibilityLabel(L10n.text("accessibility.statusItem"))
         updates.onChange = { [weak self] in
             self?.aboutWindow?.refresh()
             self?.rebuildMenu()
@@ -206,14 +206,14 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.autoenablesItems = false
         menu.minimumWidth = 280
         accountItems = [:]
-        addItem("切换账号", to: menu)
+        addItem(L10n.text("menu.account.switch"), to: menu)
         accountStatusItem = addItem("", to: menu)
-        authorizationItem = addItem("授权并重试…", action: #selector(authorizeAccounts), to: menu)
+        authorizationItem = addItem(L10n.text("menu.account.authorizeRetry"), action: #selector(authorizeAccounts), to: menu)
         accountSeparator = .separator()
         menu.addItem(accountSeparator!)
-        addItem("添加账号…", action: #selector(addAccount), to: menu)
+        addItem(L10n.text("menu.account.add"), action: #selector(addAccount), to: menu)
         let savedAccounts = usage.accounts.filter { usage.savedIdentities.contains($0.identity) }
-        let deleteAccountsItem = addItem("删除账号", to: menu)
+        let deleteAccountsItem = addItem(L10n.text("menu.account.delete"), to: menu)
         deleteAccountsItem.isEnabled = !savedAccounts.isEmpty && !busy
             && !updates.installationGate.installationRequested
         let deleteAccountsMenu = NSMenu()
@@ -225,12 +225,12 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.attributedTitle = accountMenuTitle(account.label,
                 workspace: account.isWorkspaceAccount, bold: false)
             item.isEnabled = !busy && !updates.installationGate.installationRequested
-            item.setAccessibilityLabel("删除账号备份 " + account.label
-                + (account.isWorkspaceAccount ? "，团队账号" : ""))
+            item.setAccessibilityLabel(L10n.text("accessibility.account.deleteBackup", account.label)
+                + (account.isWorkspaceAccount ? L10n.text("accessibility.account.workspaceSuffix") : ""))
             deleteAccountsMenu.addItem(item)
         }
         deleteAccountsItem.submenu = deleteAccountsMenu
-        let statusBarUsageItem = addItem("状态栏额度", to: menu)
+        let statusBarUsageItem = addItem(L10n.text("menu.statusBarUsage"), to: menu)
         statusBarUsageItem.isEnabled = !busy && !updates.installationGate.installationRequested
         let statusBarUsageMenu = NSMenu()
         for mode in StatusBarUsageMode.allCases {
@@ -244,10 +244,10 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         statusBarUsageItem.submenu = statusBarUsageMenu
         menu.addItem(.separator())
-        addItem("关于 Prism…", action: #selector(about), to: menu)
+        addItem(L10n.text("menu.about"), action: #selector(about), to: menu)
         updateItem = addItem(updates.menuTitle, action: #selector(checkForUpdates), to: menu)
         updateItem?.isEnabled = updates.canCheck
-        let quit = addItem("退出 Prism", action: #selector(exitTool), to: menu)
+        let quit = addItem(L10n.text("menu.quit"), action: #selector(exitTool), to: menu)
         quit.keyEquivalent = "q"
         quit.keyEquivalentModifierMask = .command
         status.menu = menu
@@ -285,9 +285,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateItem?.isEnabled = updates.canCheck
 
         let loadFailed = usage.loadError != nil
-        accountStatusItem?.title = loadFailed ? "账号列表加载失败…"
-            : usage.accounts.isEmpty ? (usage.refreshing ? "正在加载账号…" : "还没有保存账号")
-            : "尚未登录 ChatGPT"
+        accountStatusItem?.title = loadFailed ? L10n.text("menu.account.loadFailed")
+            : usage.accounts.isEmpty ? (usage.refreshing ? L10n.text("menu.account.loading") : L10n.text("menu.account.noneSaved"))
+            : L10n.text("menu.account.notSignedIn")
         accountStatusItem?.action = loadFailed ? #selector(accountLoadError) : nil
         accountStatusItem?.isEnabled = loadFailed && actionsAllowed
         accountStatusItem?.isHidden = !loadFailed && !usage.accounts.isEmpty && usage.currentIdentity != nil
@@ -315,7 +315,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let identities = Set(usage.accounts.map(\.identity))
         for (identity, rows) in accountItems where !identities.contains(identity) {
             rows[0].attributedTitle = nil
-            rows[0].title = loadFailed ? "暂时无法加载账号" : "这个账号已移除"
+            rows[0].title = loadFailed ? L10n.text("menu.account.temporarilyUnavailable") : L10n.text("menu.account.removed")
             rows[0].state = .off
             rows[0].isEnabled = false
             rows[0].setAccessibilityLabel(rows[0].title)
@@ -357,8 +357,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             // Keep full labels available to VoiceOver without mouse-hover popups.
             rows[0].setAccessibilityLabel(account.label
-                + (account.isWorkspaceAccount ? "，团队账号" : "")
-                + (current ? "，当前账号" : "") + "，"
+                + (account.isWorkspaceAccount ? L10n.text("accessibility.account.workspaceSuffix") : "")
+                + (current ? L10n.text("accessibility.account.currentSuffix") : "") + L10n.text("accessibility.separator")
                 + titles.joined(separator: "，") + (state?.failure.map { "，" + $0.message } ?? ""))
         }
     }
@@ -368,7 +368,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if busy {
             button.image = statusIcon
             button.imagePosition = .imageLeading
-            button.title = "处理中…"
+            button.title = L10n.text("status.processing")
             button.font = .menuBarFont(ofSize: 0)
             return
         }
@@ -381,10 +381,10 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             button.image = statusIcon
             button.imagePosition = .imageLeading
-            button.title = quota ?? (button.image == nil ? "账号" : "")
+            button.title = quota ?? (button.image == nil ? L10n.text("status.account") : "")
             button.font = .menuBarFont(ofSize: 0)
         }
-        button.setAccessibilityLabel(["Prism — ChatGPT / Codex 账号切换", quota]
+        button.setAccessibilityLabel([L10n.text("accessibility.statusItem"), quota]
             .compactMap { $0 }.joined(separator: "，"))
     }
 
@@ -398,16 +398,16 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func failureTitle(_ failure: UsageFailure) -> String? {
         switch failure {
-        case .expired: return "需要重新登录"
-        case .forbidden: return "无法查看额度"
-        case .throttled: return "稍后再试"
-        case .unavailable: return "更新失败"
+        case .expired: return L10n.text("usage.failure.signInAgain")
+        case .forbidden: return L10n.text("usage.badge.unavailable")
+        case .throttled: return L10n.text("usage.badge.tryLater")
+        case .unavailable: return L10n.text("usage.badge.updateFailed")
         case .unsupported: return nil
         }
     }
 
     @objc private func accountLoadError() {
-        notify("账号列表加载失败", usage.loadError ?? "请关闭菜单后重新打开，再试一次。")
+        notify(L10n.text("alert.accountLoadFailed.title"), usage.loadError ?? L10n.text("alert.accountLoadFailed.message"))
     }
 
     @objc private func authorizeAccounts() {
@@ -430,7 +430,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         name.maximumNumberOfLines = 2
         name.lineBreakMode = .byCharWrapping
         name.isSelectable = true
-        name.setAccessibilityLabel("将删除备份的账号名称，可复制")
+        name.setAccessibilityLabel(L10n.text("accessibility.account.deleteNameCopyable"))
         name.translatesAutoresizingMaskIntoConstraints = false
         let nameContainer = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 44))
         nameContainer.addSubview(name)
@@ -439,13 +439,13 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             name.trailingAnchor.constraint(equalTo: nameContainer.trailingAnchor),
             name.centerYAnchor.constraint(equalTo: nameContainer.centerYAnchor)
         ])
-        let alert = makeAlert("删除这个账号备份？", account.identity == usage.currentIdentity
-            ? "只会删除 Prism 钥匙串中的备份，不会退出当前登录。之后切换账号时，Prism 仍会按安全流程保存离开账号的最新认证。"
-            : "删除后不能再从 Prism 切换到这个账号，需要重新添加或登录。")
+        let alert = makeAlert(L10n.text("alert.deleteAccount.title"), account.identity == usage.currentIdentity
+            ? L10n.text("alert.deleteAccount.currentMessage")
+            : L10n.text("alert.deleteAccount.savedMessage"))
         alert.alertStyle = .warning
         alert.accessoryView = nameContainer
-        alert.addButton(withTitle: "取消")
-        let delete = alert.addButton(withTitle: "删除备份")
+        alert.addButton(withTitle: L10n.text("common.cancel"))
+        let delete = alert.addButton(withTitle: L10n.text("alert.deleteAccount.confirm"))
         delete.hasDestructiveAction = true
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         perform { [self] in
@@ -463,19 +463,19 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do { hasDesktopApp = try runtime.desktopApp() != nil }
         catch { show(error); return }
         let details = hasDesktopApp
-            ? "切换时 ChatGPT 会重新打开。请先结束正在运行的 Codex 任务。"
-            : "请先结束正在运行的 Codex 任务。"
-        let alert = makeAlert("是否切换到「\(account.label)」？", details)
-        alert.addButton(withTitle: "取消")
-        alert.addButton(withTitle: hasDesktopApp ? "切换并重开" : "切换账号")
+            ? L10n.text("alert.switchAccount.desktopMessage")
+            : L10n.text("alert.switchAccount.cliMessage")
+        let alert = makeAlert(L10n.text("alert.switchAccount.title", account.label), details)
+        alert.addButton(withTitle: L10n.text("common.cancel"))
+        alert.addButton(withTitle: hasDesktopApp ? L10n.text("alert.switchAccount.confirmAndReopen") : L10n.text("alert.switchAccount.confirm"))
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         perform { [self] in try await change(to: target) }
     }
 
     @objc private func addAccount() {
-        let alert = makeAlert("添加另一个账号", "将在浏览器中登录另一个 ChatGPT 账号。")
-        alert.addButton(withTitle: "继续登录")
-        alert.addButton(withTitle: "取消")
+        let alert = makeAlert(L10n.text("alert.addAccount.title"), L10n.text("alert.addAccount.message"))
+        alert.addButton(withTitle: L10n.text("login.continue"))
+        alert.addButton(withTitle: L10n.text("common.cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         performLogin(expectedIdentity: nil)
     }
@@ -484,9 +484,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !busy, let target = sender.representedObject as? String,
               let account = usage.accounts.first(where: { $0.identity == target }),
               usage.states[target]?.failure == .expired else { return }
-        let alert = makeAlert("重新登录「\(account.label)」？", "请在浏览器中登录同一个账号。")
-        alert.addButton(withTitle: "继续登录")
-        alert.addButton(withTitle: "取消")
+        let alert = makeAlert(L10n.text("alert.reauthenticate.title", account.label), L10n.text("alert.reauthenticate.message"))
+        alert.addButton(withTitle: L10n.text("login.continue"))
+        alert.addButton(withTitle: L10n.text("common.cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         performLogin(expectedIdentity: target)
     }
@@ -524,18 +524,19 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let data = try await AccountLogin.run(executable: executable)
         let account = try AccountLogin.remember(data, expectedIdentity: expectedIdentity, in: &book)
         try vault.save(book)
-        notify(expectedIdentity == nil ? "账号已添加" : "账号已重新登录", "「\(account.label)」现在可以切换了。")
+        notify(expectedIdentity == nil ? L10n.text("notice.accountAdded.title") : L10n.text("notice.accountReauthenticated.title"),
+               L10n.text("notice.accountReady.message", account.label))
     }
 
     private func change(to target: String) async throws {
         let file = try runtime.authFile(createDirectory: true)
         if let current = try file.read(), try AuthSnapshot(current).identity == target {
-            notify("已经在使用这个账号", "无需再次切换。")
+            notify(L10n.text("notice.alreadyUsing.title"), L10n.text("notice.alreadyUsing.message"))
             return
         }
         var book = try vault.load()
         if !book.accounts.contains(where: { $0.identity == target }) {
-            throw SwitchError("找不到这个账号，请重新添加。")
+            throw SwitchError(localized: "error.account.notFoundReadd")
         }
         let hasDesktopApp = try runtime.desktopApp() != nil
         if hasDesktopApp { try await runtime.quitClient(confirmForce: confirmForceQuit) }
@@ -548,7 +549,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try runtime.requireStopped()
             try file.checkConfiguration()
         }, launch: { [self] in if hasDesktopApp { try await runtime.launch() } })
-        notify("账号已切换", hasDesktopApp ? "ChatGPT 已重新打开。" : "切换完成。")
+        notify(L10n.text("notice.accountSwitched.title"),
+               hasDesktopApp ? L10n.text("notice.accountSwitched.desktopMessage") : L10n.text("notice.accountSwitched.cliMessage"))
     }
 
     private func perform(_ operation: @escaping @MainActor () async throws -> Void) {
@@ -572,11 +574,11 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func confirmForceQuit(_ processes: [ProcessEntry]) -> Bool {
         let list = processes.map { "• " + $0.summary }.joined(separator: "\n")
-        let alert = makeAlert("ChatGPT 仍在运行，要强制结束吗？",
-            "强制结束可能丢失未保存的内容或正在运行的任务。\n\n\(list)")
+        let alert = makeAlert(L10n.text("alert.forceQuit.title"),
+            L10n.text("alert.forceQuit.message", list))
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "取消切换")
-        alert.addButton(withTitle: "强制结束并切换")
+        alert.addButton(withTitle: L10n.text("alert.forceQuit.cancel"))
+        alert.addButton(withTitle: L10n.text("alert.forceQuit.confirm"))
         return alert.runModal() == .alertSecondButtonReturn
     }
 
@@ -590,13 +592,13 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func notify(_ title: String, _ message: String) {
         let alert = makeAlert(title, message)
-        alert.addButton(withTitle: "知道了")
+        alert.addButton(withTitle: L10n.text("common.ok"))
         alert.runModal()
     }
 
     private func show(_ error: Error) {
-        let message = (error as? SwitchError)?.message ?? "请稍后再试。"
-        notify("未能完成操作", message)
+        let message = (error as? SwitchError)?.message ?? L10n.text("error.generic.tryAgain")
+        notify(L10n.text("error.generic.title"), message)
     }
 
     @objc private func about() {

@@ -7,13 +7,13 @@ enum NativeProcesses {
         // cannot safely identify an instance after its parent exits or the PID is reused.
         for _ in 0..<3 {
             let bytes = proc_listpids(UInt32(PROC_UID_ONLY), getuid(), nil, 0)
-            guard bytes > 0 else { throw SwitchError("无法检查正在运行的 Codex 任务，因此没有切换账号。请稍后再试。") }
+            guard bytes > 0 else { throw SwitchError(localized: "error.process.inspectCodexFailed") }
             var pids = [Int32](repeating: 0, count: Int(bytes) / MemoryLayout<Int32>.size + 256)
             let capacity = pids.count * MemoryLayout<Int32>.size
             let used = pids.withUnsafeMutableBytes {
                 proc_listpids(UInt32(PROC_UID_ONLY), getuid(), $0.baseAddress, Int32(capacity))
             }
-            guard used > 0 else { throw SwitchError("无法检查正在运行的应用，因此没有切换账号。请稍后再试。") }
+            guard used > 0 else { throw SwitchError(localized: "error.process.inspectAppsFailed") }
             if used >= capacity { continue }
             var result: [ProcessEntry] = []
             for pid in pids.prefix(Int(used) / MemoryLayout<Int32>.size) where pid > 0 {
@@ -21,7 +21,7 @@ enum NativeProcesses {
             }
             return result.sorted { $0.pid < $1.pid }
         }
-        throw SwitchError("正在运行的应用仍在变化，Prism 暂时无法安全切换账号。请稍后再试。")
+        throw SwitchError(localized: "error.process.snapshotUnstable")
     }
 
     static func entry(pid: Int32) throws -> ProcessEntry? {
@@ -63,7 +63,7 @@ enum NativeProcesses {
         guard let latest = try info(pid: pid), latest.pbi_status != SZOMB else { return nil }
         guard command.terminationStatus == 0, let text = String(data: bytes, encoding: .utf8),
               text.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("/") else {
-            throw SwitchError("无法确认一个正在运行的 Codex 任务，因此没有切换账号。请结束相关任务后再试。")
+            throw SwitchError(localized: "error.process.verifyCodexFailed")
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -75,7 +75,7 @@ enum NativeProcesses {
         let count = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, Int32(size))
         guard count == size else {
             if errno == ESRCH || (Darwin.kill(pid, 0) == -1 && errno == ESRCH) { return nil }
-            throw SwitchError("无法确认一个正在运行的任务，因此没有切换账号。请稍后再试。")
+            throw SwitchError(localized: "error.process.verifyTaskFailed")
         }
         return info
     }
@@ -83,7 +83,7 @@ enum NativeProcesses {
     static func signal(_ expected: ProcessEntry, _ signal: ShutdownSignal) throws {
         guard expected.pid > 1, expected.pid != getpid(), expected.startedSeconds > 0,
               expected.isCodex, expected.hasVerifiedExecutablePath else {
-            throw SwitchError("无法安全地结束 ChatGPT 相关进程，因此账号没有切换。")
+            throw SwitchError(localized: "error.process.safeTerminationFailed")
         }
         // Check the kernel identity again immediately before signaling. Never signal
         // a replacement process just because it inherited an earlier PID or filename.
@@ -91,7 +91,7 @@ enum NativeProcesses {
               current.isSameInstance(as: expected) else { return }
         let number = signal == .terminate ? SIGTERM : SIGKILL
         guard Darwin.kill(expected.pid, number) == 0 || errno == ESRCH else {
-            throw SwitchError("无法结束 \(expected.summary)，账号没有切换。请手动退出 ChatGPT 后再试。")
+            throw SwitchError(localized: "error.process.terminationFailed", expected.summary)
         }
     }
 }

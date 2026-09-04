@@ -7,9 +7,9 @@ enum StatusBarUsageMode: String, CaseIterable {
 
     var menuTitle: String {
         switch self {
-        case .off: return "关闭"
-        case .brief: return "简略"
-        case .all: return "全部"
+        case .off: return L10n.text("statusBar.mode.off")
+        case .brief: return L10n.text("statusBar.mode.brief")
+        case .all: return L10n.text("statusBar.mode.all")
         }
     }
 }
@@ -68,15 +68,15 @@ enum UsageWindowKind: CaseIterable {
 
 struct UsageMenuTitle {
     static func make(kind: UsageWindowKind, window: UsageWindow, now: Date,
-                     timeZone: TimeZone = .current) -> String {
+                     timeZone: TimeZone = .current, locale: Locale = .current) -> String {
         let reset = window.resetsAt.map {
-            resetTitle(kind: kind, reset: $0, now: now, timeZone: timeZone)
+            resetTitle(kind: kind, reset: $0, now: now, timeZone: timeZone, locale: locale)
         } ?? "--"
         return "\(kind.label) \(window.remainingPercent)% · \(reset)"
     }
 
     private static func resetTitle(kind: UsageWindowKind, reset: TimeInterval, now: Date,
-                                   timeZone: TimeZone) -> String {
+                                   timeZone: TimeZone, locale: Locale) -> String {
         if kind == .fiveHour {
             let seconds = reset - now.timeIntervalSince1970
             guard seconds > 0 else { return "--" }
@@ -88,10 +88,10 @@ struct UsageMenuTitle {
         }
 
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = locale
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.timeZone = timeZone
-        formatter.dateFormat = "M/d HH:mm"
+        formatter.setLocalizedDateFormatFromTemplate("MdHm")
         return formatter.string(from: Date(timeIntervalSince1970: reset))
     }
 }

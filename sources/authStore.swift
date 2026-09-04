@@ -5,6 +5,7 @@ import Darwin
 struct SwitchError: LocalizedError {
     let message: String
     init(_ message: String) { self.message = message }
+    init(localized key: String, _ arguments: CVarArg...) { self.message = L10n.format(key, arguments) }
     var errorDescription: String? { message }
 }
 
@@ -29,7 +30,7 @@ struct AuthSnapshot {
               let id = tokens["id_token"] as? String,
               let claims = Self.claims(id),
               let subject = claims["sub"] as? String, !subject.isEmpty
-        else { throw SwitchError("当前登录方式不受支持，请使用 ChatGPT 账号登录。") }
+        else { throw SwitchError(localized: "error.auth.unsupportedSignIn") }
         self.data = data
         self.accountID = account
         self.accessToken = access
@@ -98,14 +99,14 @@ struct AccountBook: Codable {
             }
         } else {
             accounts.append(SavedAccount(identity: snapshot.identity,
-                label: label ?? snapshot.email ?? "账号 \(accounts.count + 1)", auth: snapshot.data,
+                label: label ?? snapshot.email ?? L10n.text("account.defaultName", accounts.count + 1), auth: snapshot.data,
                 hasCustomLabel: false))
         }
     }
 
     mutating func remove(identity: String) throws {
         guard let index = accounts.firstIndex(where: { $0.identity == identity }) else {
-            throw SwitchError("找不到这个账号，请重新打开菜单。")
+            throw SwitchError(localized: "error.account.notFoundReopenMenu")
         }
         accounts.remove(at: index)
     }
@@ -113,12 +114,12 @@ struct AccountBook: Codable {
     func validate() throws {
         guard version == 1, accounts.count <= 100,
               Set(accounts.map(\.identity)).count == accounts.count else {
-            throw SwitchError("已保存的账号信息无法识别。")
+            throw SwitchError(localized: "error.account.savedDataUnrecognized")
         }
         for account in accounts {
             guard try AuthSnapshot(account.auth).identity == account.identity,
                   !account.label.isEmpty, account.label.count <= 80 else {
-                throw SwitchError("已保存的账号信息已损坏。")
+                throw SwitchError(localized: "error.account.savedDataDamaged")
             }
         }
     }
@@ -131,14 +132,14 @@ final class AuthFile {
 
     init(home: URL) throws {
         guard home.resolvingSymlinksInPath().standardizedFileURL == home.standardizedFileURL else {
-            throw SwitchError("当前账号存储位置不受支持。")
+            throw SwitchError(localized: "error.storage.unsupportedLocation")
         }
         let fd = open(home.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-        guard fd >= 0 else { throw SwitchError("无法读取当前账号。请先登录 ChatGPT 或 Codex，再试一次。") }
+        guard fd >= 0 else { throw SwitchError(localized: "error.storage.readCurrentSignInFirst") }
         var info = stat()
         guard fstat(fd, &info) == 0, info.st_uid == getuid(), info.st_mode & 0o022 == 0 else {
             close(fd)
-            throw SwitchError("当前账号文件权限异常。")
+            throw SwitchError(localized: "error.storage.invalidPermissions")
         }
         directory = fd
     }
@@ -151,7 +152,7 @@ final class AuthFile {
         let fd = openat(directory, name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
         guard fd >= 0 else {
             if errno == ENOENT { return nil }
-            throw SwitchError("无法安全地读取账号或配置。请检查文件权限后再试。")
+            throw SwitchError(localized: "error.storage.unsafeRead")
         }
         defer { close(fd) }
         var info = stat()
@@ -159,7 +160,7 @@ final class AuthFile {
               info.st_uid == getuid(), info.st_nlink == 1,
               info.st_mode & (secret ? 0o077 : 0o022) == 0,
               info.st_size < 1_048_576 else {
-            throw SwitchError("账号或配置文件存在异常。")
+            throw SwitchError(localized: "error.storage.invalidFile")
         }
         var result = Data()
         var buffer = [UInt8](repeating: 0, count: 4096)
@@ -168,17 +169,17 @@ final class AuthFile {
             if count == 0 { break }
             if count < 0 {
                 if errno == EINTR { continue }
-                throw SwitchError("无法读取当前账号。请稍后再试。")
+                throw SwitchError(localized: "error.storage.readCurrentRetry")
             }
             result.append(contentsOf: buffer.prefix(count))
-            guard result.count < 1_048_576 else { throw SwitchError("当前账号文件异常。") }
+            guard result.count < 1_048_576 else { throw SwitchError(localized: "error.storage.invalidAccountFile") }
         }
         return result
     }
 
     func checkConfiguration() throws {
         guard let data = try readFile("config.toml", secret: false) else { return }
-        guard let text = String(data: data, encoding: .utf8) else { throw SwitchError("Codex 配置文件无法识别。") }
+        guard let text = String(data: data, encoding: .utf8) else { throw SwitchError(localized: "error.config.unrecognized") }
         // The supported packaged client fixes auth storage to auth.json. Reject an
         // explicit conflicting policy, but do not inspect stale OS keychain entries.
         let sensitiveKeys = ["cli_auth_credentials_store", "forced_login_method",
@@ -191,16 +192,16 @@ final class AuthFile {
                 if key == "cli_auth_credentials_store",
                    line.range(of: #"^cli_auth_credentials_store\s*=\s*['\"]file['\"]\s*(#.*)?$"#,
                               options: .regularExpression) != nil { continue }
-                throw SwitchError("自定义 Codex 登录设置暂不受支持。")
+                throw SwitchError(localized: "error.config.customSignInUnsupported")
             }
         }
     }
 
     func replace(with data: Data?, expected: Data?) throws {
-        guard try read() == expected else { throw SwitchError("账号已被其他应用更改，请结束其他 Codex 任务后再试。") }
+        guard try read() == expected else { throw SwitchError(localized: "error.account.changedExternally") }
         guard let data else {
             if expected != nil, unlinkat(directory, "auth.json", 0) != 0 {
-                throw SwitchError("无法退出当前账号，请稍后再试。")
+                throw SwitchError(localized: "error.account.signOutFailed")
             }
             _ = fsync(directory)
             return
@@ -208,22 +209,22 @@ final class AuthFile {
         _ = try AuthSnapshot(data)
         let temporary = ".account-switch-" + UUID().uuidString
         let fd = openat(directory, temporary, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
-        guard fd >= 0 else { throw SwitchError("无法准备账号切换。当前账号没有改变。") }
+        guard fd >= 0 else { throw SwitchError(localized: "error.account.switchPreparationFailed") }
         defer { close(fd); _ = unlinkat(directory, temporary, 0) }
         try data.withUnsafeBytes { bytes in
             var offset = 0
             while offset < bytes.count {
                 let count = Darwin.write(fd, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
                 if count < 0 && errno == EINTR { continue }
-                guard count > 0 else { throw SwitchError("无法保存所选账号。当前账号没有改变。") }
+                guard count > 0 else { throw SwitchError(localized: "error.account.saveSelectedFailed") }
                 offset += count
             }
         }
         guard fsync(fd) == 0, try read() == expected else {
-            throw SwitchError("账号已被其他应用更改，请结束其他 Codex 任务后再试。")
+            throw SwitchError(localized: "error.account.changedExternally")
         }
         guard renameat(directory, temporary, directory, "auth.json") == 0 else {
-            throw SwitchError("无法切换账号，请稍后再试。")
+            throw SwitchError(localized: "error.account.switchFailed")
         }
         _ = fsync(directory)
     }
@@ -243,7 +244,7 @@ func prepareChange(current: Data?, target: String?, book: inout AccountBook,
     let desired: Data?
     if let target {
         guard let account = book.accounts.first(where: { $0.identity == target }) else {
-            throw SwitchError("找不到所选账号的已保存信息，请重新添加这个账号。")
+            throw SwitchError(localized: "error.account.selectedBackupMissing")
         }
         desired = account.auth
     } else { desired = nil }
@@ -262,8 +263,8 @@ func applyChange(_ change: AuthChange, file: AuthFile,
             try beforeWrite()
             try file.replace(with: change.previous, expected: change.desired)
         } catch {
-            throw SwitchError("ChatGPT 无法重新打开，Prism 也无法自动切回原账号。已保存的账号仍然安全；请结束所有 Codex 任务，再从 Prism 选择原账号。")
+            throw SwitchError(localized: "error.account.relaunchAndRollbackFailed")
         }
-        throw SwitchError("ChatGPT 无法重新打开，Prism 已切回原账号。你可以手动打开 ChatGPT。")
+        throw SwitchError(localized: "error.account.relaunchFailedRolledBack")
     }
 }

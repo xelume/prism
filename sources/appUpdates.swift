@@ -19,13 +19,13 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
     var isConfigured: Bool { controller != nil && configurationMessage == nil }
     var automaticallyChecks: Bool { controller?.updater.automaticallyChecksForUpdates ?? false }
     var menuTitle: String {
-        availableVersion.map { "更新至 \($0)…" } ?? "检查更新…"
+        availableVersion.map { L10n.text("update.toVersion", $0) } ?? L10n.text("update.check")
     }
 
     func start() {
         guard controller == nil else { return }
         guard UpdateConfiguration(info: Bundle.main.infoDictionary ?? [:]) != nil else {
-            configurationMessage = "这个版本暂时无法自动检查更新。你可以前往项目主页获取新版本。"
+            configurationMessage = L10n.text("update.configurationUnavailable")
             onChange?()
             return
         }
@@ -43,7 +43,7 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
                 }
             ]
         } catch {
-            configurationMessage = "无法启动更新功能。请前往项目主页下载新版本，或重新安装 Prism 后再试。"
+            configurationMessage = L10n.text("update.startFailed")
             self.controller = nil
         }
         onChange?()
@@ -54,10 +54,10 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
         NSApp.activate(ignoringOtherApps: true)
         if let message = configurationMessage {
             let alert = NSAlert()
-            alert.messageText = "无法检查更新"
+            alert.messageText = L10n.text("update.checkFailedTitle")
             alert.informativeText = message
-            alert.addButton(withTitle: "知道了")
-            alert.addButton(withTitle: "打开项目主页")
+            alert.addButton(withTitle: L10n.text("common.ok"))
+            alert.addButton(withTitle: L10n.text("update.openProjectHome"))
             if alert.runModal() == .alertSecondButtonReturn { AboutWindow.openProject() }
             return
         }
@@ -73,7 +73,7 @@ final class AppUpdates: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandar
     func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
         guard !installationGate.accountOperationInProgress else {
             throw NSError(domain: "local.chatgptAccountSwitcher.updates", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "请等账号操作完成后，再检查更新。"])
+                userInfo: [NSLocalizedDescriptionKey: L10n.text("update.checkAfterAccountOperation")])
         }
     }
 

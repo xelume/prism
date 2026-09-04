@@ -5,14 +5,14 @@ enum CodexExecutable {
     static func resolve(configuredPath: String?, searchPaths: [String]) throws -> URL {
         if let configuredPath, !configuredPath.isEmpty {
             guard let executable = validate(configuredPath) else {
-                throw SwitchError("无法使用指定的 Codex CLI，请检查设置。")
+                throw SwitchError(localized: "error.login.configuredCliUnavailable")
             }
             return executable
         }
         for path in searchPaths {
             if let executable = validate(path) { return executable }
         }
-        throw SwitchError("没有找到可用的 Codex，请先完成安装。")
+        throw SwitchError(localized: "error.login.codexNotFound")
     }
 
     private static func validate(_ path: String) -> URL? {
@@ -32,11 +32,11 @@ struct AccountLogin {
     static func remember(_ data: Data, expectedIdentity: String?, in book: inout AccountBook) throws -> SavedAccount {
         let snapshot = try AuthSnapshot(data)
         if let expectedIdentity, snapshot.identity != expectedIdentity {
-            throw SwitchError("登录的不是原账号，请重新登录。")
+            throw SwitchError(localized: "error.login.wrongAccount")
         }
         book.remember(snapshot)
         guard let account = book.accounts.first(where: { $0.identity == snapshot.identity }) else {
-            throw SwitchError("无法保存这个账号，请再试一次。")
+            throw SwitchError(localized: "error.login.saveFailed")
         }
         return account
     }
@@ -67,11 +67,11 @@ struct AccountLogin {
             waiter.cancel()
         }
         guard status == 0 else {
-            throw SwitchError("登录未完成或已取消。")
+            throw SwitchError(localized: "error.login.incomplete")
         }
         let file = try AuthFile(home: directory)
         guard let data = try file.read() else {
-            throw SwitchError("未能获取账号信息，请重新登录。")
+            throw SwitchError(localized: "error.login.accountInfoUnavailable")
         }
         _ = try AuthSnapshot(data)
         return data
@@ -83,10 +83,10 @@ struct AccountLogin {
             guard let base = buffer.baseAddress, let result = mkdtemp(base) else { return nil }
             return String(cString: result)
         }
-        guard let path else { throw SwitchError("无法开始登录，请稍后再试。") }
+        guard let path else { throw SwitchError(localized: "error.login.startFailed") }
         guard chmod(path, 0o700) == 0 else {
             try? FileManager.default.removeItem(atPath: path)
-            throw SwitchError("无法开始登录，请检查文件权限。")
+            throw SwitchError(localized: "error.login.invalidPermissions")
         }
         return URL(fileURLWithPath: path, isDirectory: true)
     }
@@ -124,7 +124,7 @@ private final class LoginProcessWaiter: @unchecked Sendable {
                 self.lock.unlock()
                 switch reason {
                 case .canceled: continuation.resume(throwing: CancellationError())
-                case .timedOut: continuation.resume(throwing: SwitchError("等待登录超时。当前账号和已保存的账号都没有改变。"))
+                case .timedOut: continuation.resume(throwing: SwitchError(localized: "error.login.timedOut"))
                 case nil: continuation.resume(returning: finished.terminationStatus)
                 }
             }
@@ -138,7 +138,7 @@ private final class LoginProcessWaiter: @unchecked Sendable {
             } catch {
                 process.terminationHandler = nil
                 lock.unlock()
-                continuation.resume(throwing: SwitchError("无法打开登录页面，请检查 Codex 是否已安装。"))
+                continuation.resume(throwing: SwitchError(localized: "error.login.openPageFailed"))
             }
         }
     }

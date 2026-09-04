@@ -54,11 +54,11 @@ enum UsageFailure: Error, Equatable {
 
     var message: String {
         switch self {
-        case .expired: return "需要重新登录"
-        case .forbidden: return "暂时无法查看额度"
-        case .throttled: return "请稍后再试"
-        case .unavailable: return "暂时无法查看额度"
-        case .unsupported: return "暂无额度信息"
+        case .expired: return L10n.text("usage.failure.signInAgain")
+        case .forbidden: return L10n.text("usage.failure.unavailable")
+        case .throttled: return L10n.text("usage.failure.tryLater")
+        case .unavailable: return L10n.text("usage.failure.unavailable")
+        case .unsupported: return L10n.text("usage.failure.noInformation")
         }
     }
 

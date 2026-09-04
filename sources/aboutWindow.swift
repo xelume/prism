@@ -3,29 +3,29 @@ import AppKit
 @MainActor
 final class AboutWindow: NSWindowController {
     private let updates: AppUpdates
-    private let checkButton = NSButton(title: "检查更新…", target: nil, action: nil)
-    private let automaticButton = NSButton(checkboxWithTitle: "每天自动检查更新", target: nil, action: nil)
+    private let checkButton = NSButton(title: L10n.text("update.check"), target: nil, action: nil)
+    private let automaticButton = NSButton(checkboxWithTitle: L10n.text("update.automaticDaily"), target: nil, action: nil)
     private let updateStatus = NSTextField(wrappingLabelWithString: "")
 
     init(updates: AppUpdates) {
         self.updates = updates
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 590),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "关于 Prism"
+        window.title = L10n.text("about.windowTitle")
         window.isReleasedWhenClosed = false
         super.init(window: window)
         let icon = NSImageView()
         icon.image = NSImage(named: "appIcon") ?? NSApp.applicationIconImage
         icon.imageScaling = .scaleProportionallyUpOrDown
-        icon.setAccessibilityLabel("Prism 图标")
+        icon.setAccessibilityLabel(L10n.text("about.iconAccessibilityLabel"))
         icon.widthAnchor.constraint(equalToConstant: 80).isActive = true
         icon.heightAnchor.constraint(equalToConstant: 80).isActive = true
         let title = NSTextField(labelWithString: "Prism")
         title.font = .boldSystemFont(ofSize: 22)
         let info = Bundle.main.infoDictionary ?? [:]
-        let version = info["CFBundleShortVersionString"] as? String ?? "未知"
-        let build = info["CFBundleVersion"] as? String ?? "未知"
-        let subtitle = NSTextField(labelWithString: "版本 \(version)（\(build)） · xelume 星烁")
+        let version = info["CFBundleShortVersionString"] as? String ?? L10n.text("common.unknown")
+        let build = info["CFBundleVersion"] as? String ?? L10n.text("common.unknown")
+        let subtitle = NSTextField(labelWithString: L10n.text("about.version", version, build))
         subtitle.textColor = .secondaryLabelColor
         checkButton.target = self
         checkButton.action = #selector(check)
@@ -36,17 +36,17 @@ final class AboutWindow: NSWindowController {
         updateStatus.textColor = .secondaryLabelColor
         updateStatus.alignment = .center
         updateStatus.widthAnchor.constraint(equalToConstant: 388).isActive = true
-        let project = NSButton(title: "项目主页", target: self, action: #selector(openProject))
+        let project = NSButton(title: L10n.text("about.projectHome"), target: self, action: #selector(openProject))
         project.bezelStyle = .rounded
-        let safety = NSButton(title: "账号安全说明…", target: self, action: #selector(showSafety))
+        let safety = NSButton(title: L10n.text("about.securityAction"), target: self, action: #selector(showSafety))
         safety.bezelStyle = .rounded
         let links = NSStackView(views: [project, safety])
         links.spacing = 12
         let description = NSTextField(wrappingLabelWithString:
-            "快速保存和切换 ChatGPT / Codex 账号。")
+            L10n.text("about.description"))
         description.alignment = .center
         description.widthAnchor.constraint(equalToConstant: 388).isActive = true
-        let disclaimer = NSTextField(labelWithString: "独立工具，未经 OpenAI 官方支持。")
+        let disclaimer = NSTextField(labelWithString: L10n.text("about.disclaimer"))
         disclaimer.font = .systemFont(ofSize: 11)
         disclaimer.textColor = .secondaryLabelColor
         let stack = NSStackView(views: [icon, title, subtitle, description, checkButton,
@@ -80,13 +80,13 @@ final class AboutWindow: NSWindowController {
         automaticButton.isEnabled = updates.isConfigured
         automaticButton.state = updates.automaticallyChecks ? .on : .off
         if updates.installationGate.accountOperationInProgress {
-            updateStatus.stringValue = "账号操作完成后即可安装更新。"
+            updateStatus.stringValue = L10n.text("update.waitForAccountOperation")
         } else if let message = updates.configurationMessage {
             updateStatus.stringValue = message
         } else if let version = updates.availableVersion {
-            updateStatus.stringValue = "新版本 \(version) 可用，点击查看更新说明。"
+            updateStatus.stringValue = L10n.text("update.available", version)
         } else {
-            updateStatus.stringValue = "发现新版本时提醒我，不会自动下载或安装。"
+            updateStatus.stringValue = L10n.text("update.passiveReminder")
         }
     }
 
@@ -99,9 +99,9 @@ final class AboutWindow: NSWindowController {
 
     @objc private func showSafety() {
         let alert = NSAlert()
-        alert.messageText = "账号安全说明"
-        alert.informativeText = "账号信息保存在本机钥匙串中，不会同步到 iCloud。Prism 不会读取你的密码。\n\n切换账号不会删除本地设置和任务，但云端内容、订阅及权限取决于当前账号。\n\n本工具未经 OpenAI 官方支持。"
-        alert.addButton(withTitle: "知道了")
+        alert.messageText = L10n.text("about.securityTitle")
+        alert.informativeText = L10n.text("about.securityMessage")
+        alert.addButton(withTitle: L10n.text("common.ok"))
         if let window { alert.beginSheetModal(for: window) }
     }
 }

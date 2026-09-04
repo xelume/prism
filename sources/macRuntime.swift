@@ -25,7 +25,7 @@ final class KeychainVault {
         if status == errSecItemNotFound { return AccountBook() }
         guard status == errSecSuccess, let data = result as? Data,
               let book = try? JSONDecoder().decode(AccountBook.self, from: data) else {
-            throw SwitchError("无法加载账号，请解锁钥匙串后重试。")
+            throw SwitchError(localized: "error.keychain.loadFailed")
         }
         try book.validate()
         return book
@@ -39,12 +39,12 @@ final class KeychainVault {
         if status == errSecItemNotFound {
             var item = query
             item[kSecValueData as String] = data
-            item[kSecAttrLabel as String] = "ChatGPT / Codex 账号切换备份"
+            item[kSecAttrLabel as String] = L10n.text("keychain.backupLabel")
             item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             status = SecItemAdd(item as CFDictionary, nil)
         }
         guard status == errSecSuccess else {
-            throw SwitchError("无法保存账号，请检查钥匙串权限。")
+            throw SwitchError(localized: "error.keychain.saveFailed")
         }
     }
 
@@ -62,23 +62,23 @@ final class MacRuntime {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700])
         guard directory.resolvingSymlinksInPath().standardizedFileURL == directory.standardizedFileURL else {
-            throw SwitchError("Prism 无法正常启动，请重新安装。")
+            throw SwitchError(localized: "error.runtime.reinstall")
         }
         var info = stat()
         guard lstat(directory.path, &info) == 0, info.st_uid == getuid(), info.st_mode & 0o077 == 0 else {
-            throw SwitchError("Prism 文件权限异常，请重新安装。")
+            throw SwitchError(localized: "error.runtime.invalidPermissionsReinstall")
         }
         let fd = open(directory.appendingPathComponent("instance.lock").path,
                       O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0o600)
-        guard fd >= 0 else { throw SwitchError("Prism 无法正常启动，请退出后再试。") }
+        guard fd >= 0 else { throw SwitchError(localized: "error.runtime.quitAndRetry") }
         guard fstat(fd, &info) == 0, info.st_uid == getuid(), info.st_mode & S_IFMT == S_IFREG,
               info.st_nlink == 1, info.st_mode & 0o077 == 0 else {
             close(fd)
-            throw SwitchError("Prism 文件权限异常，请重新安装。")
+            throw SwitchError(localized: "error.runtime.invalidPermissionsReinstall")
         }
         guard flock(fd, LOCK_EX | LOCK_NB) == 0 else {
             close(fd)
-            throw SwitchError("Prism 已经在运行。请使用菜单栏中的 Prism 图标。")
+            throw SwitchError(localized: "error.runtime.alreadyRunning")
         }
         lockDescriptor = fd
     }
@@ -86,7 +86,7 @@ final class MacRuntime {
     func desktopApp() throws -> URL? {
         guard FileManager.default.fileExists(atPath: appURL.path) else { return nil }
         guard let bundle = Bundle(url: appURL), bundle.bundleIdentifier == "com.openai.codex" else {
-            throw SwitchError("无法识别 ChatGPT，请重新安装官方版本。")
+            throw SwitchError(localized: "error.runtime.chatgptUnrecognized")
         }
         var code: SecStaticCode?
         var requirement: SecRequirement?
@@ -94,7 +94,7 @@ final class MacRuntime {
         guard SecStaticCodeCreateWithPath(appURL as CFURL, [], &code) == errSecSuccess,
               SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
               let code, SecStaticCodeCheckValidity(code, [], requirement) == errSecSuccess else {
-            throw SwitchError("无法验证 ChatGPT，请重新安装官方版本。")
+            throw SwitchError(localized: "error.runtime.chatgptUnverified")
         }
         return appURL
     }
@@ -104,7 +104,7 @@ final class MacRuntime {
         for key in ["CODEX_HOME", "CODEX_ELECTRON_USER_DATA_PATH", "CODEX_ACCESS_TOKEN",
                     "CODEX_AUTH_JSON", "OPENAI_API_KEY"] {
             if let value = env[key], !value.isEmpty {
-                throw SwitchError("自定义 Codex 登录环境暂不受支持。")
+                throw SwitchError(localized: "error.runtime.customCodexHomeUnsupported")
             }
         }
         if createDirectory, !FileManager.default.fileExists(atPath: home.path) {
@@ -159,7 +159,7 @@ final class MacRuntime {
             guard let entry = snapshot.first(where: { $0.pid == app.processIdentifier }),
                   entry.executable == app.executableURL?.path else {
                 if app.isTerminated { continue }
-                throw SwitchError("无法确认 ChatGPT 是否已退出，请完全退出后重试。")
+                throw SwitchError(localized: "error.runtime.quitStatusUnknown")
             }
             roots.append(entry)
         }
@@ -168,7 +168,7 @@ final class MacRuntime {
             requestQuit: {
                 for app in apps where !app.isTerminated {
                     guard app.terminate() || app.isTerminated else {
-                        throw SwitchError("ChatGPT 没有退出，请完全退出后重试。")
+                        throw SwitchError(localized: "error.runtime.chatgptStillRunning")
                     }
                 }
             },
@@ -185,7 +185,7 @@ final class MacRuntime {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             NSWorkspace.shared.openApplication(at: appURL, configuration: config) { app, error in
                 if error != nil || app == nil {
-                    continuation.resume(throwing: SwitchError("账号已切换，但 ChatGPT 未能重新打开。请手动打开 ChatGPT。"))
+                    continuation.resume(throwing: SwitchError(localized: "error.runtime.relaunchFailedAfterSwitch"))
                 } else { continuation.resume() }
             }
         }

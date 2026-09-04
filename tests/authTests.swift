@@ -98,7 +98,7 @@ func runTests() throws {
     namedBook.remember(refreshedEmailAuth)
     try check(namedBook.accounts.first?.label == "updated@example.com", "refresh updates email label")
     namedBook.remember(invalidEmail)
-    try check(namedBook.accounts.last?.label == "账号 2", "missing email uses numbered label")
+    try check(namedBook.accounts.last?.label == L10n.text("account.defaultName", 2), "missing email uses numbered label")
 
     namedBook.accounts[0].label = "工作账号"
     namedBook.accounts[0].hasCustomLabel = true
@@ -266,7 +266,8 @@ func runTransitionTests() async throws {
     } catch is CancellationError {
         throw SwitchError("Timeout must not report user cancellation")
     } catch let error as SwitchError {
-        try check(error.message.contains("超时"), "timeout reports its actual reason")
+        try check(error.message == L10n.text("error.login.timedOut"),
+                  "timeout reports its actual reason")
     }
     try check(ProcessInfo.processInfo.systemUptime - timeoutStart < 2,
               "timeout force-stops an unresponsive login process")

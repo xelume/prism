@@ -33,7 +33,8 @@ struct ProcessEntry {
     }
 
     var summary: String {
-        "\(URL(fileURLWithPath: executable).lastPathComponent)（PID \(pid)，父进程 \(parentPID)）"
+        L10n.text("process.summary",
+            URL(fileURLWithPath: executable).lastPathComponent, pid, parentPID)
     }
 
     // Path hints explain blockers; they never establish ownership or signal authority.
@@ -44,9 +45,9 @@ struct ProcessEntry {
                 && components[$0 + 1] == "extensions"
                 && components[$0 + 2].hasPrefix("openai.chatgpt-")
         }) {
-            return "来自 VS Code 的 Codex：请保存工作并完全退出 VS Code；只关闭 Codex 面板可能无法结束后台任务"
+            return L10n.text("process.guidance.vscode")
         }
-        return "来自终端或 IDE 的 Codex：请结束相关任务和后台服务"
+        return L10n.text("process.guidance.terminalOrIde")
     }
 }
 
@@ -99,9 +100,9 @@ struct ClientProcessTree {
         let remaining = blockers(in: snapshot)
         guard remaining.isEmpty else {
             let details = remaining.map {
-                "• \($0.summary) — \(owns($0) ? "ChatGPT 尚未完全退出" : $0.independentProcessGuidance)"
+                "• \($0.summary) — \(owns($0) ? L10n.text("process.chatgptNotFullyQuit") : $0.independentProcessGuidance)"
             }.joined(separator: "\n")
-            throw SwitchError("请先结束以下 Codex 任务：\n\n\(details)")
+            throw SwitchError(localized: "error.process.tasksStillRunning", details)
         }
     }
 }
@@ -164,7 +165,7 @@ final class ClientShutdown {
         let candidates = tree.residuals(in: snapshot).filter(\.hasVerifiedExecutablePath)
         guard !candidates.isEmpty else { return }
         guard operations.confirmForce(candidates) else {
-            throw SwitchError("已取消强制结束，账号没有切换。ChatGPT 可能已退出部分进程，你可以手动重新打开。")
+            throw SwitchError(localized: "error.process.forceQuitCanceled")
         }
         // Re-read after the modal dialog: only the exact reviewed instances are approved.
         let fresh = try operations.read()
