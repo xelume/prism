@@ -466,8 +466,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ? L10n.text("alert.switchAccount.desktopMessage")
             : L10n.text("alert.switchAccount.cliMessage")
         let alert = makeAlert(L10n.text("alert.switchAccount.title", account.label), details)
-        alert.addButton(withTitle: L10n.text("common.cancel"))
-        alert.addButton(withTitle: hasDesktopApp ? L10n.text("alert.switchAccount.confirmAndReopen") : L10n.text("alert.switchAccount.confirm"))
+        AlertButtons.addConfirmation(to: alert, cancelTitle: L10n.text("common.cancel"),
+            confirmTitle: hasDesktopApp ? L10n.text("alert.switchAccount.confirmAndReopen")
+                : L10n.text("alert.switchAccount.confirm"))
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         perform { [self] in try await change(to: target) }
     }
