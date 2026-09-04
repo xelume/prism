@@ -5,7 +5,7 @@ import Darwin
 struct SwitchError: LocalizedError {
     let message: String
     init(_ message: String) { self.message = message }
-    init(localized key: String, _ arguments: CVarArg...) { self.message = L10n.format(key, arguments) }
+    init(localized key: LocalizedStringResource, _ arguments: CVarArg...) { self.message = L10n.format(key, arguments) }
     var errorDescription: String? { message }
 }
 
