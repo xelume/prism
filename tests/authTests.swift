@@ -1,5 +1,6 @@
 import Foundation
 import Darwin
+import Security
 
 private func check(_ condition: @autoclosure () throws -> Bool, _ label: String) throws {
     guard try condition() else { throw SwitchError("Assertion failed: " + label) }
@@ -31,6 +32,16 @@ private func fakeAuth(account: String, subject: String = "test-person", revision
 }
 
 func runTests() throws {
+    let keychainData = Data("simulated-keychain-data".utf8)
+    let keychainValues = KeychainVault.itemValues(for: keychainData)
+    try check(keychainValues[kSecAttrLabel as String] as? String == "Prism",
+              "new and existing keychain items use a stable label")
+    try check(keychainValues[kSecValueData as String] as? Data == keychainData,
+              "keychain updates preserve the encoded account data")
+    try check(KeychainVault.labelValues[kSecAttrLabel as String] as? String == "Prism"
+              && KeychainVault.labelValues[kSecValueData as String] == nil,
+              "successful reads migrate only the keychain label")
+
     let manager = FileManager.default
     let root = manager.temporaryDirectory.resolvingSymlinksInPath()
         .appendingPathComponent("account-switch-tests-" + UUID().uuidString)

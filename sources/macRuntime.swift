@@ -4,6 +4,15 @@ import LocalAuthentication
 import Darwin
 
 final class KeychainVault {
+    static let itemLabel = "Prism"
+    static let labelValues: [String: Any] = [kSecAttrLabel as String: itemLabel]
+
+    static func itemValues(for data: Data) -> [String: Any] {
+        var values = labelValues
+        values[kSecValueData as String] = data
+        return values
+    }
+
     private let query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
         kSecAttrService as String: "local.chatgptAccountSwitcher",
@@ -28,18 +37,18 @@ final class KeychainVault {
             throw SwitchError(localized: "error.keychain.loadFailed")
         }
         try book.validate()
+        _ = SecItemUpdate(query as CFDictionary, Self.labelValues as CFDictionary)
         return book
     }
 
     func save(_ book: AccountBook) throws {
         try book.validate()
         let data = try JSONEncoder().encode(book)
-        let values = [kSecValueData as String: data]
+        let values = Self.itemValues(for: data)
         var status = SecItemUpdate(query as CFDictionary, values as CFDictionary)
         if status == errSecItemNotFound {
             var item = query
-            item[kSecValueData as String] = data
-            item[kSecAttrLabel as String] = L10n.text("keychain.backupLabel")
+            item.merge(values) { _, new in new }
             item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             status = SecItemAdd(item as CFDictionary, nil)
         }

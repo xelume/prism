@@ -1425,22 +1425,6 @@
         }
       }
     },
-    "keychain.backupLabel": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ChatGPT / Codex Account Switcher Backup"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ChatGPT / Codex 账号切换备份"
-          }
-        }
-      }
-    },
     "process.summary": {
       "localizations": {
         "en": {
