@@ -5,6 +5,9 @@ MACOSX_DEPLOYMENT_TARGET = 26.0
 SWIFT_VERSION = 5.0
 SDKROOT = macosx
 
+// Display label for newly created account backups. Existing items keep their label.
+KEYCHAIN_ITEM_LABEL = ChatGPT / Codex Account Backups
+
 // Local/CI development distribution only; no Developer ID or notarization yet.
 CODE_SIGN_STYLE = Manual
 CODE_SIGN_IDENTITY = -

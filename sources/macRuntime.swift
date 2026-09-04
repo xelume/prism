@@ -4,15 +4,6 @@ import LocalAuthentication
 import Darwin
 
 final class KeychainVault {
-    static let itemLabel = "ChatGPT / Codex Account Backups"
-    static let labelValues: [String: Any] = [kSecAttrLabel as String: itemLabel]
-
-    static func itemValues(for data: Data) -> [String: Any] {
-        var values = labelValues
-        values[kSecValueData as String] = data
-        return values
-    }
-
     private let query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
         kSecAttrService as String: "local.chatgptAccountSwitcher",
@@ -37,18 +28,22 @@ final class KeychainVault {
             throw SwitchError(localized: "error.keychain.loadFailed")
         }
         try book.validate()
-        _ = SecItemUpdate(query as CFDictionary, Self.labelValues as CFDictionary)
         return book
     }
 
     func save(_ book: AccountBook) throws {
         try book.validate()
         let data = try JSONEncoder().encode(book)
-        let values = Self.itemValues(for: data)
+        let values = [kSecValueData as String: data]
         var status = SecItemUpdate(query as CFDictionary, values as CFDictionary)
         if status == errSecItemNotFound {
+            guard let label = Bundle.main.object(forInfoDictionaryKey: "PrismKeychainItemLabel") as? String,
+                  !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw SwitchError(localized: "error.keychain.saveFailed")
+            }
             var item = query
-            item.merge(values) { _, new in new }
+            item[kSecValueData as String] = data
+            item[kSecAttrLabel as String] = label
             item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             status = SecItemAdd(item as CFDictionary, nil)
         }

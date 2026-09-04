@@ -14,6 +14,7 @@
   <key>LSMinimumSystemVersion</key><string>$(MACOSX_DEPLOYMENT_TARGET)</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
+  <key>PrismKeychainItemLabel</key><string>$(KEYCHAIN_ITEM_LABEL)</string>
   <key>SUFeedURL</key><string>$(SPARKLE_FEED_URL)</string>
   <key>SUPublicEDKey</key><string>$(SPARKLE_PUBLIC_ED_KEY)</string>
   <key>SUScheduledCheckInterval</key><integer>86400</integer>
