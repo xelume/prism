@@ -37,7 +37,7 @@ private struct UsageOutcome {
 }
 
 private enum UsageRefreshTrigger {
-    case scheduled, menu, force
+    case scheduled, menu, force, recovery
 }
 
 @MainActor
@@ -51,6 +51,8 @@ final class UsageMonitor {
     private var generation = UUID()
     private var nextScheduledCheck = Date.distantPast
     private var paused = false
+    private var startedAt = Date.distantPast
+    private var lastRecoveryAt = Date.distantPast
     private(set) var accounts: [SavedAccount] = []
     private(set) var savedIdentities: Set<String> = []
     private(set) var currentIdentity: String?
@@ -77,15 +79,28 @@ final class UsageMonitor {
 
     func refreshOnMenuOpen() { start(.menu) }
 
+    // Recovery replaces requests started before sleep; duplicate wake/path events
+    // share a short cooldown so they cannot repeatedly cancel the replacement.
+    func recover() {
+        guard !paused, now().timeIntervalSince(lastRecoveryAt) >= 5 else { return }
+        lastRecoveryAt = now()
+        if task != nil {
+            guard now().timeIntervalSince(startedAt) >= 5 else { return }
+            generation = UUID()
+            task?.cancel()
+            task = nil
+        }
+        start(.recovery)
+    }
+
     func statusBarUsageModeDidChange() {
         guard let currentIdentity, var state = states[currentIdentity], let updatedAt = state.updatedAt else {
             nextScheduledCheck = Date.distantPast
             refresh()
             return
         }
-        state.nextRefreshAt = max(state.retryAt ?? Date.distantPast,
-            nextSuccessRefresh(for: state.value, updatedAt: updatedAt,
-                               current: true, confirmationAttempts: state.resetConfirmationAttempts))
+        state.nextRefreshAt = state.retryAt ?? nextSuccessRefresh(for: state.value, updatedAt: updatedAt,
+                               current: true, confirmationAttempts: state.resetConfirmationAttempts)
         states[currentIdentity] = state
         updateNextScheduledCheck()
         refresh()
@@ -100,6 +115,7 @@ final class UsageMonitor {
               }) else { return }
         let revision = UUID()
         generation = revision
+        startedAt = now()
         refreshing = true
         onChange?()
         task = Task { [weak self] in await self?.run(revision: revision, trigger: trigger) }
@@ -142,7 +158,8 @@ final class UsageMonitor {
                 if authChanged, states[account.identity]?.failure == .expired {
                     states[account.identity]?.retryAt = nil
                 }
-                if let retry = states[account.identity]?.retryAt, retry > now() { continue }
+                if let state = states[account.identity], let retry = state.retryAt, retry > now(),
+                   !((trigger == .force || trigger == .recovery) && state.failure == .unavailable) { continue }
                 guard authChanged || shouldRefresh(account.identity, trigger: trigger) else { continue }
                 pending.append(try AuthSnapshot(account.auth))
             }
@@ -178,7 +195,8 @@ final class UsageMonitor {
                         if case .throttled(let retryAfter) = result.failure {
                             delay = max(300, min(3600, retryAfter))
                         } else {
-                            let delays: [TimeInterval] = [300, 600, 1200, 1800]
+                            let delays: [TimeInterval] = result.failure == .unavailable
+                                ? [15, 30, 60, 120, 300] : [300, 600, 1200, 1800]
                             delay = delays[min(state.consecutiveFailures - 1, delays.count - 1)]
                         }
                         state.retryAt = now().addingTimeInterval(delay)
@@ -203,6 +221,7 @@ final class UsageMonitor {
         guard let state = states[identity], let updatedAt = state.updatedAt else { return true }
         switch trigger {
         case .force: return true
+        case .recovery: return state.failure == .unavailable || now() >= (state.nextRefreshAt ?? .distantPast)
         case .scheduled: return now() >= (state.nextRefreshAt ?? Date.distantPast)
         case .menu:
             let threshold: TimeInterval = identity == currentIdentity ? 60 : 300
@@ -233,6 +252,10 @@ final class UsageMonitor {
     }
 
     private func updateNextScheduledCheck() {
+        if loadError != nil {
+            nextScheduledCheck = now().addingTimeInterval(30)
+            return
+        }
         nextScheduledCheck = states.values.compactMap(\.nextRefreshAt).min() ?? now().addingTimeInterval(900)
     }
 }

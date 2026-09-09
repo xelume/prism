@@ -1,4 +1,5 @@
 import AppKit
+import Network
 
 private enum StatusBarUsageImage {
     private static let height: CGFloat = 18
@@ -132,6 +133,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var aboutWindow: AboutWindow?
     private var updateItem: NSMenuItem?
     private var refreshTimer: Timer?
+    private let networkMonitor = NWPathMonitor()
+    private var networkAvailable: Bool?
+
     private var loginTask: Task<Void, Never>?
     private var menuIsOpen = false
     private var accountItems: [String: [NSMenuItem]] = [:]
@@ -179,6 +183,28 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         RunLoop.main.add(timer, forMode: .common)
         refreshTimer = timer
         usage.refresh()
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification,
+                     NSWorkspace.sessionDidBecomeActiveNotification] {
+            center.addObserver(self, selector: #selector(recoverUsage), name: name, object: nil)
+        }
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            let available = path.status == .satisfied
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let recovered = self.networkAvailable == false && available
+                self.networkAvailable = available
+                if recovered { self.usage.recover() }
+            }
+        }
+        networkMonitor.start(queue: DispatchQueue(label: "Prism.usageNetwork"))
+    }
+
+    @objc private func recoverUsage() { usage.recover() }
+
+    @objc private func refreshUsage() {
+        guard !busy, !updates.installationGate.installationRequested else { return }
+        usage.refresh(force: true)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -211,6 +237,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         authorizationItem = addItem(L10n.text("menu.account.authorizeRetry"), action: #selector(authorizeAccounts), to: menu)
         accountSeparator = .separator()
         menu.addItem(accountSeparator!)
+        addItem(L10n.text("menu.usage.refresh"), action: #selector(refreshUsage), to: menu)
         addItem(L10n.text("menu.account.add"), action: #selector(addAccount), to: menu)
         let savedAccounts = usage.accounts.filter { usage.savedIdentities.contains($0.identity) }
         let deleteAccountsItem = addItem(L10n.text("menu.account.delete"), to: menu)
@@ -332,6 +359,9 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let state = usage.states[account.identity]
             var badges: [String] = []
             if let failure = state?.failure, let title = failureTitle(failure) { badges.append(title) }
+            if state?.failure != nil, let retryAt = state?.retryAt {
+                badges.append(L10n.text("usage.retryAt", retryAt.formatted(date: .omitted, time: .standard)))
+            }
             let suffix = badges.isEmpty ? "" : "   " + badges.joined(separator: " · ")
             rows[0].title = account.label + suffix
             rows[0].state = current ? .on : .off
@@ -402,7 +432,7 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .forbidden: return L10n.text("usage.badge.unavailable")
         case .throttled: return L10n.text("usage.badge.tryLater")
         case .unavailable: return L10n.text("usage.badge.updateFailed")
-        case .unsupported: return nil
+        case .unsupported: return L10n.text("usage.failure.noInformation")
         }
     }
 
@@ -616,6 +646,8 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        networkMonitor.cancel()
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
         refreshTimer?.invalidate()
         usage.pause()
     }

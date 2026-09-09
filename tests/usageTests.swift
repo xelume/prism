@@ -256,8 +256,8 @@ func runUsageTests() async throws {
     try requireUsage(monitor.states[a.identity]?.value == swapped && monitor.states[a.identity]?.failure == nil, "newly saved token can recover immediately")
 
     await probe.reply(a.identity, .failure(.unavailable))
-    for (failureNumber, delay) in [300, 600, 1200, 1800].enumerated() {
-        monitor.refresh(force: true)
+    for (failureNumber, delay) in [15, 30, 60, 120, 300].enumerated() {
+        monitor.refresh(force: failureNumber == 0)
         try await waitForUsage { !monitor.refreshing }
         try requireUsage(monitor.states[a.identity]?.retryAt == clock.addingTimeInterval(TimeInterval(delay)),
             "ordinary failure backoff step \(failureNumber + 1)")
@@ -277,13 +277,35 @@ func runUsageTests() async throws {
     try requireUsage(monitor.states[a.identity]?.consecutiveFailures == 0,
         "successful refresh resets ordinary failure backoff")
 
+    await probe.reply(a.identity, .failure(.unavailable))
+    monitor.refresh(force: true)
+    try await waitForUsage { !monitor.refreshing }
+    await probe.reply(a.identity, .success(swapped))
+    monitor.refresh(force: true)
+    try await waitForUsage { !monitor.refreshing }
+    try requireUsage(monitor.states[a.identity]?.value == swapped && monitor.states[a.identity]?.failure == nil,
+        "manual refresh immediately retries temporary failures")
+    await probe.reply(a.identity, .failure(.unavailable))
+    monitor.refresh(force: true)
+    try await waitForUsage { !monitor.refreshing }
+    await probe.reply(a.identity, .success(normal))
+    monitor.recover()
+    monitor.recover()
+    try await waitForUsage { !monitor.refreshing }
+    try requireUsage(monitor.states[a.identity]?.failure == nil,
+        "recovery bypasses temporary failure backoff and coalesces duplicate events")
+
     await probe.reply(a.identity, .failure(.throttled(900)))
     monitor.refresh(force: true)
     try await waitForUsage { !monitor.refreshing }
     try requireUsage(monitor.states[a.identity]?.retryAt == clock.addingTimeInterval(900), "server retry-after extends the normal refresh interval")
     await probe.reply(a.identity, .success(normal))
-    let beforeThrottleRetry = await probe.count()
     clock = clock.addingTimeInterval(899)
+    monitor.recover()
+    try await waitForUsage { !monitor.refreshing }
+    try requireUsage(monitor.states[a.identity]?.failure == .throttled(900),
+        "recovery preserves server throttling")
+    let beforeThrottleRetry = await probe.count()
     monitor.refresh(force: true)
     try await waitForUsage { !monitor.refreshing }
     let duringThrottle = await probe.count()
@@ -297,6 +319,7 @@ func runUsageTests() async throws {
     try requireUsage(!monitor.refreshing, "switch transaction pauses refresh")
 
     let resetProbe = UsageProbe()
+    await resetProbe.reply(b.identity, .success(normal))
     let resetUsage = AccountUsage(
         fiveHour: UsageWindow(usedPercent: 20, seconds: 18_000,
                               resetsAt: clock.timeIntervalSince1970 + 100),
@@ -365,6 +388,28 @@ func runUsageTests() async throws {
         switching.states[b.identity]?.value == swapped, "late pre-switch results discarded")
     switching.pause()
 
+    let recoveryGate = UsageGate()
+    var recoveryLoad = try UsageAccounts(book: book, current: a.data)
+    let recovering = UsageMonitor(load: { recoveryLoad }, fetch: { auth in
+        if auth.identity == a.identity { return await recoveryGate.fetch() }
+        return swapped
+    }, now: { clock }, jitter: { 0 })
+    recovering.refresh()
+    try await waitForUsage { await recoveryGate.didStart() }
+    clock = clock.addingTimeInterval(3600)
+    recoveryLoad = try UsageAccounts(book: onlyB, current: b.data)
+    recovering.recover()
+    recovering.recover()
+    try await waitForUsage { !recovering.refreshing }
+    await recoveryGate.finish(normal)
+    for _ in 0..<20 { await Task.yield() }
+    try requireUsage(recovering.states[a.identity] == nil && recovering.states[b.identity]?.value == swapped,
+        "wake replaces suspended work and discards late results")
+    recovering.pause()
+    clock = clock.addingTimeInterval(10)
+    recovering.recover()
+    try requireUsage(!recovering.refreshing, "recovery never resumes an account transaction pause")
+
     var many = AccountBook()
     for index in 0..<7 {
         let auth = try usageAuth("SIMULATED-many-\(index)")
@@ -379,12 +424,20 @@ func runUsageTests() async throws {
     try requireUsage(peak <= 3 && bounded.states.count == 7, "bounded concurrency completes all accounts")
     bounded.pause()
 
-    let locked = UsageMonitor(load: { throw SwitchError("SIMULATED locked keychain") }, fetch: { _ in
+    var loadAttempts = 0
+    let locked = UsageMonitor(load: { loadAttempts += 1; throw SwitchError("SIMULATED locked keychain") }, fetch: { _ in
         throw SwitchError("must not fetch when loading fails")
-    })
+    }, now: { clock })
     locked.refresh()
     try await waitForUsage { !locked.refreshing }
     try requireUsage(locked.loadError != nil && locked.accounts.isEmpty, "keychain failure does not query cached credentials")
+    clock = clock.addingTimeInterval(29)
+    locked.refresh()
+    try requireUsage(!locked.refreshing, "load failure waits for its retry interval")
+    clock = clock.addingTimeInterval(1)
+    locked.refresh()
+    try await waitForUsage { !locked.refreshing }
+    try requireUsage(loadAttempts == 2, "locked account loading retries after thirty seconds")
     locked.pause()
     print("Usage tests passed (synthetic accounts, mocked transport, no network).")
 }
