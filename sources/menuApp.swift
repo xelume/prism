@@ -202,11 +202,6 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func recoverUsage() { usage.recover() }
 
-    @objc private func refreshUsage() {
-        guard !busy, !updates.installationGate.installationRequested else { return }
-        usage.refresh(force: true)
-    }
-
     func menuWillOpen(_ menu: NSMenu) {
         rebuildMenu()
         menuIsOpen = true
@@ -237,7 +232,6 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         authorizationItem = addItem(L10n.text("menu.account.authorizeRetry"), action: #selector(authorizeAccounts), to: menu)
         accountSeparator = .separator()
         menu.addItem(accountSeparator!)
-        addItem(L10n.text("menu.usage.refresh"), action: #selector(refreshUsage), to: menu)
         addItem(L10n.text("menu.account.add"), action: #selector(addAccount), to: menu)
         let savedAccounts = usage.accounts.filter { usage.savedIdentities.contains($0.identity) }
         let deleteAccountsItem = addItem(L10n.text("menu.account.delete"), to: menu)

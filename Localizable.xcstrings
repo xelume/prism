@@ -1825,22 +1825,6 @@
         }
       }
     },
-    "menu.usage.refresh" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Update usage"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新用量"
-          }
-        }
-      }
-    },
     "notice.accountAdded.title" : {
       "localizations" : {
         "en" : {
