@@ -25,6 +25,7 @@ struct UsageState {
     var updatedAt: Date?
     var failure: UsageFailure?
     var retryAt: Date?
+    var failedAt: Date?
     var nextRefreshAt: Date?
     var consecutiveFailures = 0
     var resetConfirmationAttempts = 0
@@ -110,7 +111,7 @@ final class UsageMonitor {
         guard !paused, task == nil,
               trigger != .scheduled || now() >= nextScheduledCheck,
               trigger != .menu || accounts.isEmpty || accounts.contains(where: { account in
-                  (states[account.identity]?.retryAt ?? Date.distantPast) <= now()
+                  retryAllowed(account.identity, trigger: .menu)
                       && shouldRefresh(account.identity, trigger: .menu)
               }) else { return }
         let revision = UUID()
@@ -158,8 +159,7 @@ final class UsageMonitor {
                 if authChanged, states[account.identity]?.failure == .expired {
                     states[account.identity]?.retryAt = nil
                 }
-                if let state = states[account.identity], let retry = state.retryAt, retry > now(),
-                   !((trigger == .force || trigger == .recovery) && state.failure == .unavailable) { continue }
+                guard retryAllowed(account.identity, trigger: trigger) else { continue }
                 guard authChanged || shouldRefresh(account.identity, trigger: trigger) else { continue }
                 pending.append(try AuthSnapshot(account.auth))
             }
@@ -189,6 +189,7 @@ final class UsageMonitor {
                                 current: result.identity == currentIdentity, confirmationAttempts: attempts),
                             consecutiveFailures: 0, resetConfirmationAttempts: attempts)
                     } else {
+                        state.failedAt = now()
                         state.failure = result.failure
                         state.consecutiveFailures += 1
                         let delay: TimeInterval
@@ -196,7 +197,7 @@ final class UsageMonitor {
                             delay = max(300, min(3600, retryAfter))
                         } else {
                             let delays: [TimeInterval] = result.failure == .unavailable
-                                ? [15, 30, 60, 120, 300] : [300, 600, 1200, 1800]
+                                ? [15, 30, 60] : [300, 600, 1200, 1800]
                             delay = delays[min(state.consecutiveFailures - 1, delays.count - 1)]
                         }
                         state.retryAt = now().addingTimeInterval(delay)
@@ -217,6 +218,18 @@ final class UsageMonitor {
         }
     }
 
+    private func retryAllowed(_ identity: String, trigger: UsageRefreshTrigger) -> Bool {
+        guard let state = states[identity] else { return true }
+        if state.failure == .unavailable {
+            switch trigger {
+            case .force, .recovery: return true
+            case .menu: return state.failedAt.map { now().timeIntervalSince($0) >= 15 } ?? false
+            case .scheduled: break
+            }
+        }
+        return (state.retryAt ?? .distantPast) <= now()
+    }
+
     private func shouldRefresh(_ identity: String, trigger: UsageRefreshTrigger) -> Bool {
         guard let state = states[identity], let updatedAt = state.updatedAt else { return true }
         switch trigger {
@@ -224,6 +237,7 @@ final class UsageMonitor {
         case .recovery: return state.failure == .unavailable || now() >= (state.nextRefreshAt ?? .distantPast)
         case .scheduled: return now() >= (state.nextRefreshAt ?? Date.distantPast)
         case .menu:
+            if state.failure == .unavailable { return true }
             let threshold: TimeInterval = identity == currentIdentity ? 60 : 300
             return now().timeIntervalSince(updatedAt) >= threshold
         }

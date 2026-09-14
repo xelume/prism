@@ -256,7 +256,7 @@ func runUsageTests() async throws {
     try requireUsage(monitor.states[a.identity]?.value == swapped && monitor.states[a.identity]?.failure == nil, "newly saved token can recover immediately")
 
     await probe.reply(a.identity, .failure(.unavailable))
-    for (failureNumber, delay) in [15, 30, 60, 120, 300].enumerated() {
+    for (failureNumber, delay) in [15, 30, 60, 60, 60].enumerated() {
         monitor.refresh(force: failureNumber == 0)
         try await waitForUsage { !monitor.refreshing }
         try requireUsage(monitor.states[a.identity]?.retryAt == clock.addingTimeInterval(TimeInterval(delay)),
@@ -295,6 +295,33 @@ func runUsageTests() async throws {
     try requireUsage(monitor.states[a.identity]?.failure == nil,
         "recovery bypasses temporary failure backoff and coalesces duplicate events")
 
+    // Recent cached successes must not suppress menu recovery of a failed account.
+    await probe.reply(a.identity, .failure(.unavailable))
+    for _ in 0..<3 {
+        monitor.refresh(force: true)
+        try await waitForUsage { !monitor.refreshing }
+    }
+    let beforeMenuRetry = await probe.count()
+    clock = clock.addingTimeInterval(14)
+    monitor.refreshOnMenuOpen()
+    try await waitForUsage { !monitor.refreshing }
+    let duringMenuCooldown = await probe.count()
+    try requireUsage(duringMenuCooldown == beforeMenuRetry, "menu respects fifteen-second failure cooldown")
+    clock = clock.addingTimeInterval(1)
+    monitor.refreshOnMenuOpen(); monitor.refreshOnMenuOpen()
+    try await waitForUsage { !monitor.refreshing }
+    let afterMenuRetry = await probe.count()
+    try requireUsage(afterMenuRetry == beforeMenuRetry + 1,
+        "menu retries only failed account before sixty-second backoff and coalesces requests")
+    monitor.refreshOnMenuOpen()
+    try requireUsage(!monitor.refreshing, "failed menu retry restarts cooldown")
+    clock = clock.addingTimeInterval(15)
+    await probe.reply(a.identity, .success(normal))
+    monitor.refreshOnMenuOpen()
+    try await waitForUsage { !monitor.refreshing }
+    try requireUsage(monitor.states[a.identity]?.failure == nil && monitor.states[a.identity]?.failedAt == nil,
+        "successful menu retry clears failure and cooldown")
+
     await probe.reply(a.identity, .failure(.throttled(900)))
     monitor.refresh(force: true)
     try await waitForUsage { !monitor.refreshing }
@@ -305,6 +332,9 @@ func runUsageTests() async throws {
     try await waitForUsage { !monitor.refreshing }
     try requireUsage(monitor.states[a.identity]?.failure == .throttled(900),
         "recovery preserves server throttling")
+    monitor.refreshOnMenuOpen()
+    try await waitForUsage { !monitor.refreshing }
+    try requireUsage(monitor.states[a.identity]?.failure == .throttled(900), "menu respects server backoff")
     let beforeThrottleRetry = await probe.count()
     monitor.refresh(force: true)
     try await waitForUsage { !monitor.refreshing }
