@@ -565,11 +565,10 @@ final class MenuApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let hasDesktopApp = try runtime.desktopApp() != nil
         if hasDesktopApp { try await runtime.quitClient(confirmForce: confirmForceQuit) }
-        else { try runtime.requireStopped() }
         try runtime.requireStopped()
         let change = try prepareChange(current: file.read(), target: target, book: &book, persist: vault.save)
-        // Recheck immediately before the compare-and-replace. Other Codex clients do not
-        // honor our lock, so this detects ordinary races but is not OS-wide isolation.
+        // Recheck the desktop client before writing. Independent CLI and IDE clients
+        // remain running; the success notice asks users to restart them.
         try await applyChange(change, file: file, beforeWrite: { [self] in
             try runtime.requireStopped()
             try file.checkConfiguration()

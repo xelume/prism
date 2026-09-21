@@ -71,46 +71,34 @@ func runShutdownTests() async throws {
     try expect(graceful.seconds == 10 && graceful.signals.count == 1 && graceful.signals[0].1 == .terminate,
                "reparented helper receives TERM only after grace")
 
-    // Shared executable names do not imply ownership. An independent CLI remains a blocker.
+    // Independent clients neither block switching nor inherit desktop signal authority.
     let independent = VirtualDesktop([mock(11, parent: 10), mock(12, parent: 900)])
     independent.ignoreTerminate = true
     independent.allowForce = true
-    try await expectFailure {
-        try await ClientShutdown().quit(roots: [independent.root], operations: independent.operations)
-    }
-    try expect(!independent.quitCalled && independent.seconds == 0,
-               "independent CLI blocks before desktop quit or waiting")
-    try expect(independent.signals.isEmpty && independent.confirmations.isEmpty,
-               "preflight blocker never triggers signals or force confirmation")
-    try expect(independent.processes.map(\.pid) == [10, 11, 12], "all existing processes remain alive")
+    let independentController = ClientShutdown()
+    try await independentController.quit(roots: [independent.root], operations: independent.operations)
+    try independentController.requireStopped(independent.processes)
+    try expect(independent.confirmations.map { $0.map(\.pid) } == [[11]],
+               "force confirmation includes only the owned residual")
+    try expect(independent.signals.allSatisfy { $0.0.pid == 11 }
+        && independent.processes.map(\.pid) == [12], "independent CLI remains running after switching gate")
 
     let extensionProcess = ProcessEntry(pid: 48407,
         executable: "/Users/test/.vscode/extensions/openai.chatgpt-26.825.51511-darwin-arm64/bin/macos-aarch64/codex",
         parentPID: 48305, startedSeconds: 100, startedMicroseconds: 1)
     let editor = VirtualDesktop([extensionProcess])
-    var editorError = ""
-    do {
-        try await ClientShutdown().quit(roots: [editor.root], operations: editor.operations)
-    } catch { editorError = error.localizedDescription }
-    let normalizedEditorError = editorError.replacingOccurrences(of: ",", with: "")
-    try expect(normalizedEditorError.contains("VS Code") && normalizedEditorError.contains("48407")
-               && normalizedEditorError.contains("48305"),
-        "extension blocker names the host, recovery action, and process identifiers")
-    try expect(!editor.quitCalled && editor.signals.isEmpty, "extension guidance does not grant signal authority")
-    try expect(!mock(12, name: "openai.chatgpt-fake/codex").independentProcessGuidance.contains("VS Code"),
-               "unrelated paths retain generic guidance")
+    try await ClientShutdown().quit(roots: [editor.root], operations: editor.operations)
+    try expect(editor.quitCalled && editor.signals.isEmpty && editor.confirmations.isEmpty
+        && editor.processes.map(\.pid) == [48407], "VS Code extension stays alive without confirmation")
 
-    // Preflight is not sufficient: independent processes can appear while the client exits.
     let lateIndependent = VirtualDesktop()
     lateIndependent.onQuit = {
         $0.remove(10)
         $0.processes.append(mock(12, parent: 900))
     }
-    try await expectFailure {
-        try await ClientShutdown().quit(roots: [lateIndependent.root], operations: lateIndependent.operations)
-    }
-    try expect(lateIndependent.quitCalled && lateIndependent.signals.isEmpty
-        && lateIndependent.processes.map(\.pid) == [12], "final check still blocks newly started independent CLI")
+    try await ClientShutdown().quit(roots: [lateIndependent.root], operations: lateIndependent.operations)
+    try expect(lateIndependent.signals.isEmpty && lateIndependent.confirmations.isEmpty
+        && lateIndependent.processes.map(\.pid) == [12], "new independent CLI does not block switching")
 
     let canceled = VirtualDesktop([mock(11, parent: 10)])
     canceled.onQuit = { _ in } // Official quit request was canceled or hung.
@@ -145,9 +133,7 @@ func runShutdownTests() async throws {
     reused.ignoreTerminate = true
     reused.allowForce = true
     reused.onConfirm = { $0.processes = [mock(11, start: 101)] }
-    try await expectFailure {
-        try await ClientShutdown().quit(roots: [reused.root], operations: reused.operations)
-    }
+    try await ClientShutdown().quit(roots: [reused.root], operations: reused.operations)
     try expect(!reused.signals.contains { $0.1 == .kill }, "PID reuse during dialog never inherits kill approval")
 
     let spawnedDuringDialog = VirtualDesktop([mock(11, parent: 10)])
@@ -177,7 +163,9 @@ func runShutdownTests() async throws {
 
     let orphan = VirtualDesktop()
     orphan.processes = [mock(11)]
-    try await expectFailure { try await ClientShutdown().quit(roots: [], operations: orphan.operations) }
+    let orphanController = ClientShutdown()
+    try await orphanController.quit(roots: [], operations: orphan.operations)
+    try orphanController.requireStopped(orphan.processes)
     try expect(orphan.signals.isEmpty && orphan.confirmations.isEmpty, "unproven preexisting orphans are never killed")
 
     let crashpad = VirtualDesktop([ProcessEntry(pid: 12,

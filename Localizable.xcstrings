@@ -1878,13 +1878,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Switch complete."
+            "value" : "Switch complete.\n\nIf you use the CLI or VS Code extension, restart the CLI session or extension to load the latest sign-in information."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切换完成。"
+            "value" : "切换完成。\n\n若正在使用 CLI 或 VS Code 插件，请重启对应 CLI 会话或插件，以加载最新登录信息。"
           }
         }
       }
@@ -1894,13 +1894,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ChatGPT has reopened."
+            "value" : "ChatGPT has reopened.\n\nIf you use the CLI or VS Code extension, restart the CLI session or extension to load the latest sign-in information."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ChatGPT 已重新打开。"
+            "value" : "ChatGPT 已重新打开。\n\n若正在使用 CLI 或 VS Code 插件，请重启对应 CLI 会话或插件，以加载最新登录信息。"
           }
         }
       }
@@ -1965,38 +1965,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ChatGPT 尚未完全退出"
-          }
-        }
-      }
-    },
-    "process.guidance.terminalOrIde" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Codex from a terminal or IDE: end the related tasks and background services"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "来自终端或 IDE 的 Codex：请结束相关任务和后台服务"
-          }
-        }
-      }
-    },
-    "process.guidance.vscode" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Codex from VS Code: save your work and quit VS Code completely; closing only the Codex panel may leave background tasks running"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "来自 VS Code 的 Codex：请保存工作并完全退出 VS Code；只关闭 Codex 面板可能无法结束后台任务"
           }
         }
       }

@@ -152,6 +152,11 @@ final class MacRuntime {
     }
 
     func requireStopped() throws {
+        // Also catch a desktop app relaunched after the captured process tree exited.
+        guard !NSRunningApplication.runningApplications(withBundleIdentifier: "com.openai.codex")
+            .contains(where: { !$0.isTerminated }) else {
+            throw SwitchError(localized: "error.runtime.chatgptStillRunning")
+        }
         try shutdown.requireStopped(NativeProcesses.snapshot())
     }
 
