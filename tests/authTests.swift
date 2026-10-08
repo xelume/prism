@@ -49,6 +49,28 @@ func runTests() throws {
     try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fakeCLI.path)
     try check(try CodexExecutable.resolve(configuredPath: nil, searchPaths: ["/missing/codex", fakeCLI.path]).path == fakeCLI.path,
               "standalone CLI search skips unusable candidates")
+    let app = root.appendingPathComponent("ChatGPT.app")
+    let modernCLI = app.appendingPathComponent("Contents/Resources/codex-cli/bin/codex")
+    let legacyCLI = app.appendingPathComponent("Contents/Resources/codex")
+    try manager.createDirectory(at: modernCLI.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let bundledPaths = CodexExecutable.bundledSearchPaths(in: app)
+    let searchPaths = bundledPaths + [fakeCLI.path]
+    try check(try CodexExecutable.resolve(configuredPath: nil, searchPaths: searchPaths).path == fakeCLI.path,
+              "missing bundled CLI falls back to standalone installation")
+    try manager.copyItem(at: fakeCLI, to: legacyCLI)
+    try check(try CodexExecutable.resolve(configuredPath: nil, searchPaths: searchPaths).path == legacyCLI.path,
+              "legacy desktop layout remains supported")
+    try manager.copyItem(at: fakeCLI, to: modernCLI)
+    try check(try CodexExecutable.resolve(configuredPath: nil, searchPaths: searchPaths).path == modernCLI.path,
+              "modern desktop entry point takes priority over legacy and standalone installations")
+    try check(try CodexExecutable.resolve(configuredPath: fakeCLI.path, searchPaths: searchPaths).path == fakeCLI.path,
+              "explicit CLI configuration retains priority over bundled installations")
+    try manager.removeItem(at: legacyCLI)
+    try check(try CodexExecutable.resolve(configuredPath: nil, searchPaths: searchPaths).path == modernCLI.path,
+              "updated desktop works without the removed legacy entry point")
+    try manager.setAttributes([.posixPermissions: 0o722], ofItemAtPath: modernCLI.path)
+    try check(try CodexExecutable.resolve(configuredPath: nil, searchPaths: searchPaths).path == fakeCLI.path,
+              "unsafe modern bundled CLI is rejected before standalone fallback")
     let a = try fakeAuth(account: "simulated-a")
     let refreshed = try fakeAuth(account: "simulated-a", revision: "refreshed")
     let b = try fakeAuth(account: "simulated-b")

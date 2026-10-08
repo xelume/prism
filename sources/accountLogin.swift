@@ -2,6 +2,12 @@ import Foundation
 import Darwin
 
 enum CodexExecutable {
+    /// Candidate CLI entry points inside an already signature-verified desktop app, newest layout first.
+    static func bundledSearchPaths(in app: URL) -> [String] {
+        ["Contents/Resources/codex-cli/bin/codex", "Contents/Resources/codex"]
+            .map { app.appendingPathComponent($0).path }
+    }
+
     static func resolve(configuredPath: String?, searchPaths: [String]) throws -> URL {
         if let configuredPath, !configuredPath.isEmpty {
             guard let executable = validate(configuredPath) else {

@@ -128,7 +128,7 @@ final class MacRuntime {
     func codexExecutable() throws -> URL {
         var paths: [String] = []
         if let app = try desktopApp() {
-            paths.append(app.appendingPathComponent("Contents/Resources/codex").path)
+            paths += CodexExecutable.bundledSearchPaths(in: app)
         }
         let environment = ProcessInfo.processInfo.environment
         paths += (environment["PATH"] ?? "").split(separator: ":").map { String($0) + "/codex" }
